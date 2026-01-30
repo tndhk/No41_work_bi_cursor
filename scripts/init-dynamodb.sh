@@ -48,8 +48,12 @@ create_table "${PREFIX}Users" \
 # Groups テーブル
 create_table "${PREFIX}Groups" \
     "AttributeName=groupId,KeyType=HASH" \
-    "AttributeName=groupId,AttributeType=S AttributeName=userId,AttributeType=S" \
-    "[{\"IndexName\":\"GroupMembers\",\"KeySchema\":[{\"AttributeName\":\"groupId\",\"KeyType\":\"HASH\"},{\"AttributeName\":\"userId\",\"KeyType\":\"RANGE\"}],\"Projection\":{\"ProjectionType\":\"ALL\"}}]"
+    "AttributeName=groupId,AttributeType=S"
+
+# GroupMembers テーブル
+create_table "${PREFIX}GroupMembers" \
+    "AttributeName=groupId,KeyType=HASH AttributeName=userId,KeyType=RANGE" \
+    "AttributeName=groupId,AttributeType=S AttributeName=userId,AttributeType=S"
 
 # Datasets テーブル
 create_table "${PREFIX}Datasets" \

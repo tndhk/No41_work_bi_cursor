@@ -23,6 +23,18 @@ def _item_to_user(item: dict) -> User:
     )
 
 
+def _item_to_user_in_db(item: dict) -> UserInDB:
+    """DynamoDBアイテムをUserInDBモデルに変換"""
+    return UserInDB(
+        user_id=item["userId"]["S"],
+        email=item["email"]["S"],
+        name=item["name"]["S"],
+        password_hash=item["passwordHash"]["S"],
+        created_at=datetime.fromtimestamp(int(item["createdAt"]["N"])),
+        updated_at=datetime.fromtimestamp(int(item["updatedAt"]["N"])),
+    )
+
+
 def _dict_to_dynamodb_item(data: dict) -> dict:
     """辞書をDynamoDBアイテム形式に変換"""
     item = {}
@@ -81,9 +93,24 @@ async def get_user(user_id: str) -> Optional[User]:
 
 async def get_user_by_email(email: str) -> Optional[UserInDB]:
     """メールアドレスでユーザを取得"""
-    # DynamoDBではGSIが必要だが、MVPでは簡易実装
-    # 実際にはGSIを作成してクエリする必要がある
-    raise NotImplementedError("Email lookup requires GSI")
+    client = await get_dynamodb_client()
+    
+    # Scan + FilterExpressionで検索（MVP段階では許容）
+    # 本番環境ではGSIを作成してクエリすることを推奨
+    response = await client.scan(
+        TableName=TABLE_NAME,
+        FilterExpression="email = :email",
+        ExpressionAttributeValues={
+            ":email": {"S": email}
+        },
+        Limit=1,
+    )
+    
+    items = response.get("Items", [])
+    if not items:
+        return None
+    
+    return _item_to_user_in_db(items[0])
 
 
 async def list_users(limit: int = 20, offset: int = 0, q: Optional[str] = None) -> tuple[list[User], int]:

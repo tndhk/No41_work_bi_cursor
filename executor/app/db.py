@@ -1,10 +1,29 @@
-"""S3接続層"""
+"""データベース接続層（Executor用）"""
 from typing import Literal
 import aioboto3
 from botocore.config import Config
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.core.config import settings
 
+class Settings(BaseSettings):
+    """設定"""
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+    )
+    
+    # S3設定
+    s3_endpoint: str | None = None
+    s3_region: str = "ap-northeast-1"
+    s3_bucket_datasets: str = "bi-datasets"
+    s3_bucket_static: str = "bi-static"
+    s3_access_key: str | None = None
+    s3_secret_key: str | None = None
+
+
+settings = Settings()
 
 _s3_client = None
 
@@ -44,9 +63,7 @@ async def get_s3_client():
             client_kwargs["aws_access_key_id"] = settings.s3_access_key
             client_kwargs["aws_secret_access_key"] = settings.s3_secret_key
         
-        context = session.client("s3", **client_kwargs)
-        # aioboto3 の context manager からクライアントを取得
-        _s3_client = await context.__aenter__()
+        _s3_client = session.client("s3", **client_kwargs)
     
     return _s3_client
 

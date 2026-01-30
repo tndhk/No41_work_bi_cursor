@@ -30,11 +30,13 @@ async def get_dynamodb_client():
         session = aioboto3.Session()
         config = _create_dynamodb_config()
         
-        _dynamodb_client = session.client(
+        context = session.client(
             "dynamodb",
             endpoint_url=settings.dynamodb_endpoint,
             config=config,
         )
+        # aioboto3 の context manager からクライアントを取得
+        _dynamodb_client = await context.__aenter__()
     
     return _dynamodb_client
 
@@ -47,11 +49,13 @@ async def get_dynamodb_resource():
         session = aioboto3.Session()
         config = _create_dynamodb_config()
         
-        _dynamodb_resource = session.resource(
+        context = session.resource(
             "dynamodb",
             endpoint_url=settings.dynamodb_endpoint,
             config=config,
         )
+        # aioboto3 の context manager からリソースを取得
+        _dynamodb_resource = await context.__aenter__()
     
     return _dynamodb_resource
 

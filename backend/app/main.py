@@ -80,6 +80,24 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(chatbot.router, prefix="/api")
 
+# Groups API
+from app.api.routes import groups
+app.include_router(groups.router, prefix="/api")
+
+# Datasets API
+from app.api.routes import datasets
+app.include_router(datasets.router, prefix="/api")
+
+# Cards API
+from app.api.routes import cards
+app.include_router(cards.router, prefix="/api")
+
+# Dashboards API
+from app.api.routes import dashboards, dashboard_shares, filter_views
+app.include_router(dashboards.router, prefix="/api")
+app.include_router(dashboard_shares.router, prefix="/api")
+app.include_router(filter_views.router, prefix="/api")
+
 
 @app.get("/health")
 async def health():

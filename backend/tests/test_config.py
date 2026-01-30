@@ -30,6 +30,7 @@ def test_settings_validates_jwt_secret_length():
 def test_settings_has_default_values():
     """デフォルト値が設定されている"""
     os.environ["JWT_SECRET_KEY"] = "test-secret-key-min-32-chars-long-enough"
+    os.environ["LOG_LEVEL"] = "INFO"
     
     settings = Settings()
     assert settings.api_workers == 4

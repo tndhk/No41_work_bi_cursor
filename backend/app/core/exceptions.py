@@ -7,6 +7,18 @@ class BIException(HTTPException):
     pass
 
 
+class BadRequestError(BIException):
+    """不正なリクエストエラー"""
+    def __init__(self, detail: str):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "BAD_REQUEST",
+                "message": detail,
+            },
+        )
+
+
 class ValidationError(BIException):
     """バリデーションエラー"""
     def __init__(self, detail: str, field: str = None):
