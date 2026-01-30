@@ -1,0 +1,101 @@
+"""FastAPI アプリケーションエントリポイント"""
+from datetime import datetime
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+
+from app.core.config import settings
+from app.core.logging import setup_logging
+from app.core.middleware import RequestIDMiddleware
+from app.core.exceptions import BIException
+from app.api.routes import auth, users, chatbot
+
+# ログ設定初期化
+setup_logging()
+
+app = FastAPI(
+    title="社内BI・Pythonカード API",
+    description="ローカルCSVおよびS3上のCSVを取り込み、PythonでHTMLカードを定義してダッシュボードに配置できる社内BIツール",
+    version="0.1.0",
+)
+
+# ミドルウェア登録
+app.add_middleware(RequestIDMiddleware)
+
+
+def _get_request_id(request: Request) -> str | None:
+    """リクエストIDを取得"""
+    return getattr(request.state, "request_id", None)
+
+
+def _create_error_response(
+    status_code: int,
+    error: dict,
+    request: Request,
+) -> JSONResponse:
+    """エラーレスポンスを作成"""
+    request_id = _get_request_id(request)
+    meta = {"request_id": request_id} if request_id else {}
+    
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "error": error,
+            "meta": meta,
+        },
+    )
+
+
+@app.exception_handler(BIException)
+async def bi_exception_handler(request: Request, exc: BIException):
+    """BI例外ハンドラー"""
+    error = exc.detail if isinstance(exc.detail, dict) else {"message": str(exc.detail)}
+    return _create_error_response(exc.status_code, error, request)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """バリデーションエラーハンドラー"""
+    error = {
+        "code": "VALIDATION_ERROR",
+        "message": "Validation error",
+        "details": exc.errors(),
+    }
+    return _create_error_response(422, error, request)
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """一般例外ハンドラー"""
+    error = {
+        "code": "INTERNAL_ERROR",
+        "message": "Internal server error",
+    }
+    return _create_error_response(500, error, request)
+
+
+# ルーター登録
+app.include_router(auth.router, prefix="/api")
+app.include_router(users.router, prefix="/api")
+app.include_router(chatbot.router, prefix="/api")
+
+
+@app.get("/health")
+async def health():
+    """ヘルスチェックエンドポイント"""
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    uvicorn.run(
+        "app.main:app",
+        host=settings.api_host,
+        port=settings.api_port,
+        reload=settings.api_debug,
+    )
