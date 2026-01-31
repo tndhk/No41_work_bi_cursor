@@ -7,6 +7,8 @@ import traceback
 
 from app.sandbox import sandbox_context, validate_code, SandboxError
 from app.db import get_s3_client, get_bucket_name
+from app.resource_limiter import ResourceLimiter, TimeoutError
+from app.config import settings
 
 
 class ExecutionError(Exception):
@@ -16,6 +18,11 @@ class ExecutionError(Exception):
 
 class ExecutionTimeout(Exception):
     """実行タイムアウト"""
+    pass
+
+
+class ResourceLimitError(Exception):
+    """リソース制限エラー"""
     pass
 
 
@@ -41,41 +48,51 @@ async def execute_card(
     # フィルタを適用
     filtered_df = apply_filters(df, filters)
     
+    # リソース制限を適用
+    limiter = ResourceLimiter(
+        timeout_seconds=settings.card_timeout_seconds,
+        max_memory_mb=settings.card_max_memory_mb,
+        max_file_size_mb=settings.card_max_file_size_mb,
+    )
+    
     # サンドボックス内でコードを実行
     try:
-        with sandbox_context():
-            # グローバル名前空間を準備
-            namespace = {
-                "pd": pd,
-                "pandas": pd,
-                "dataset": filtered_df,
-                "filters": filters,
-                "params": params or {},
-            }
-            
-            # コードを実行
-            exec(code, namespace)
-            
-            # render関数を呼び出す
-            if "render" not in namespace:
-                raise ExecutionError("render function not found in code")
-            
-            render_func = namespace["render"]
-            result = render_func(filtered_df, filters, params or {})
-            
-            # 結果を検証
-            if not isinstance(result, dict):
-                raise ExecutionError("render function must return a dict")
-            
-            if "html" not in result:
-                raise ExecutionError("render function must return dict with 'html' key")
-            
-            return {
-                "html": result.get("html", ""),
-                "used_columns": result.get("used_columns", []),
-                "filter_applicable": result.get("filter_applicable", []),
-            }
+        with limiter.limit():
+            with sandbox_context():
+                # グローバル名前空間を準備
+                namespace = {
+                    "pd": pd,
+                    "pandas": pd,
+                    "dataset": filtered_df,
+                    "filters": filters,
+                    "params": params or {},
+                }
+                
+                # コードを実行
+                exec(code, namespace)
+                
+                # render関数を呼び出す
+                if "render" not in namespace:
+                    raise ExecutionError("render function not found in code")
+                
+                render_func = namespace["render"]
+                result = render_func(filtered_df, filters, params or {})
+                
+                # 結果を検証
+                if not isinstance(result, dict):
+                    raise ExecutionError("render function must return a dict")
+                
+                if "html" not in result:
+                    raise ExecutionError("render function must return dict with 'html' key")
+                
+                return {
+                    "html": result.get("html", ""),
+                    "used_columns": result.get("used_columns", []),
+                    "filter_applicable": result.get("filter_applicable", []),
+                }
     
+    except TimeoutError as e:
+        raise ExecutionTimeout(f"Execution timeout: {e}")
     except SandboxError as e:
         raise ExecutionError(f"Sandbox error: {e}")
     except Exception as e:
@@ -101,38 +118,48 @@ async def execute_transform(
     except Exception as e:
         raise ExecutionError(f"Failed to load input dataset: {e}")
     
+    # リソース制限を適用
+    limiter = ResourceLimiter(
+        timeout_seconds=settings.transform_timeout_seconds,
+        max_memory_mb=settings.transform_max_memory_mb,
+        max_file_size_mb=settings.transform_max_file_size_mb,
+    )
+    
     # サンドボックス内でコードを実行
     try:
-        with sandbox_context():
-            # グローバル名前空間を準備
-            namespace = {
-                "pd": pd,
-                "pandas": pd,
-                "inputs": inputs,
-                "params": {},
-            }
-            
-            # コードを実行
-            exec(code, namespace)
-            
-            # transform関数を呼び出す
-            if "transform" not in namespace:
-                raise ExecutionError("transform function not found in code")
-            
-            transform_func = namespace["transform"]
-            result_df = transform_func(inputs, {})
-            
-            # 結果を検証
-            if not isinstance(result_df, pd.DataFrame):
-                raise ExecutionError("transform function must return a DataFrame")
-            
-            return {
-                "dataframe": result_df,
-                "row_count": len(result_df),
-                "column_count": len(result_df.columns),
-                "columns": list(result_df.columns),
-            }
+        with limiter.limit():
+            with sandbox_context():
+                # グローバル名前空間を準備
+                namespace = {
+                    "pd": pd,
+                    "pandas": pd,
+                    "inputs": inputs,
+                    "params": {},
+                }
+                
+                # コードを実行
+                exec(code, namespace)
+                
+                # transform関数を呼び出す
+                if "transform" not in namespace:
+                    raise ExecutionError("transform function not found in code")
+                
+                transform_func = namespace["transform"]
+                result_df = transform_func(inputs, {})
+                
+                # 結果を検証
+                if not isinstance(result_df, pd.DataFrame):
+                    raise ExecutionError("transform function must return a DataFrame")
+                
+                return {
+                    "dataframe": result_df,
+                    "row_count": len(result_df),
+                    "column_count": len(result_df.columns),
+                    "columns": list(result_df.columns),
+                }
     
+    except TimeoutError as e:
+        raise ExecutionTimeout(f"Execution timeout: {e}")
     except SandboxError as e:
         raise ExecutionError(f"Sandbox error: {e}")
     except Exception as e:

@@ -6,6 +6,7 @@ import ProtectedRoute from './components/common/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
 import DashboardListPage from './pages/DashboardListPage'
 import DashboardViewPage from './pages/DashboardViewPage'
+import DashboardEditPage from './pages/DashboardEditPage'
 import { useAuthStore } from './stores/auth'
 import { authApi } from './lib/api'
 
@@ -40,6 +41,7 @@ function AppContent() {
           <Route index element={<Navigate to="/dashboards" replace />} />
           <Route path="dashboards" element={<DashboardListPage />} />
           <Route path="dashboards/:dashboardId" element={<DashboardViewPage />} />
+          <Route path="dashboards/:dashboardId/edit" element={<DashboardEditPage />} />
           <Route path="datasets" element={<div className="p-6"><h2 className="text-2xl font-bold">Dataset管理</h2><p className="mt-4 text-gray-600">実装予定...</p></div>} />
           <Route path="cards" element={<div className="p-6"><h2 className="text-2xl font-bold">Card管理</h2><p className="mt-4 text-gray-600">実装予定...</p></div>} />
           <Route path="transforms" element={<div className="p-6"><h2 className="text-2xl font-bold">Transform管理</h2><p className="mt-4 text-gray-600">実装予定...</p></div>} />

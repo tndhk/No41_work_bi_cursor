@@ -19,10 +19,13 @@
 - [x] Dashboards API（CRUD + 複製 + 参照Dataset）
 - [x] Dashboard Shares API（権限管理）
 - [x] FilterViews API（CRUD）
+- [x] Transforms API（CRUD + 手動実行 + スケジュール設定 + 実行履歴取得）
 - [x] Executor基本実装（sandbox, runner）
+- [x] Executor完成（リソース制限、importフック、実行キュー/バックプレッシャ）
 - [x] フロントエンド認証UI（LoginPage）
 - [x] フロントエンド共通レイアウト（Layout, Header, Sidebar）
 - [x] フロントエンドDashboard一覧・閲覧画面
+- [x] フロントエンドDashboard編集画面（レイアウト編集・自動保存）
 - [x] React Router + 保護ルート
 - [x] テストスイート安定化（84テストパス）
 
@@ -33,27 +36,27 @@
 ### 優先度: 高
 
 #### 1. Transforms API
-- [ ] `backend/app/models/transform.py` - Transformモデル定義
-- [ ] `backend/app/services/transform_service.py` - Transformサービス
-- [ ] `backend/app/api/routes/transforms.py` - Transformルート
-  - [ ] CRUD操作
-  - [ ] 手動実行
-  - [ ] スケジュール設定
-  - [ ] 実行履歴取得
+- [x] `backend/app/models/transform.py` - Transformモデル定義
+- [x] `backend/app/services/transform_service.py` - Transformサービス
+- [x] `backend/app/api/routes/transforms.py` - Transformルート
+  - [x] CRUD操作
+  - [x] 手動実行（NotImplementedError - Phase 6で実装予定）
+  - [x] スケジュール設定
+  - [x] 実行履歴取得
 
 #### 2. Executor完成
-- [ ] リソース制限（CPU/メモリ/タイムアウト）の厳格化
-- [ ] importフック（ホワイトリストチェック）
-- [ ] 実行キュー管理
-  - [ ] 同時実行数制限
-  - [ ] バックプレッシャ（503返却）
+- [x] リソース制限（CPU/メモリ/タイムアウト）の厳格化
+- [x] importフック（ホワイトリストチェック）
+- [x] 実行キュー管理
+  - [x] 同時実行数制限
+  - [x] バックプレッシャ（503返却）
 
 ### 優先度: 中
 
 #### 3. フロントエンドDashboard編集
-- [ ] `frontend/src/pages/DashboardEditPage.tsx` - 編集画面
-- [ ] `frontend/src/components/dashboard/DashboardEditor.tsx`
-- [ ] `frontend/src/components/dashboard/DashboardViewer.tsx`
+- [x] `frontend/src/pages/DashboardEditPage.tsx` - 編集画面
+- [x] `frontend/src/components/dashboard/DashboardEditor.tsx`
+- [x] `frontend/src/components/dashboard/DashboardViewer.tsx`
 
 #### 4. Dataset管理UI
 - [ ] `frontend/src/pages/DatasetListPage.tsx`

@@ -98,6 +98,10 @@ app.include_router(dashboards.router, prefix="/api")
 app.include_router(dashboard_shares.router, prefix="/api")
 app.include_router(filter_views.router, prefix="/api")
 
+# Transforms API
+from app.api.routes import transforms
+app.include_router(transforms.router, prefix="/api")
+
 
 @app.get("/health")
 async def health():

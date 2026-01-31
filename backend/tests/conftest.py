@@ -69,6 +69,7 @@ DYNAMODB_PATCH_TARGETS = [
     "app.services.dashboard_service.get_dynamodb_client",
     "app.services.dashboard_share_service.get_dynamodb_client",
     "app.services.filter_view_service.get_dynamodb_client",
+    "app.services.transform_service.get_dynamodb_client",
 ]
 
 S3_PATCH_TARGETS = [
@@ -215,6 +216,22 @@ def sample_card():
         "params": {},
         "usedColumns": [],
         "filterApplicable": [],
+        "createdAt": now,
+        "updatedAt": now,
+    }
+
+
+@pytest.fixture
+def sample_transform():
+    """テスト用Transformデータ"""
+    now = int(datetime.utcnow().timestamp())
+    return {
+        "transformId": "transform_test123",
+        "name": "Test Transform",
+        "ownerId": "user_test123",
+        "code": "def transform(input_datasets, params):\n    return input_datasets[0]",
+        "inputDatasetIds": ["dataset_test123"],
+        "params": {},
         "createdAt": now,
         "updatedAt": now,
     }
@@ -372,6 +389,46 @@ def setup_dynamodb_tables(mock_dynamodb):
                     "KeySchema": [
                         {"AttributeName": "dashboardId", "KeyType": "HASH"},
                         {"AttributeName": "createdAt", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+        },
+        {
+            "TableName": get_table_name("Transforms"),
+            "KeySchema": [{"AttributeName": "transformId", "KeyType": "HASH"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "transformId", "AttributeType": "S"},
+                {"AttributeName": "ownerId", "AttributeType": "S"},
+                {"AttributeName": "createdAt", "AttributeType": "N"},
+            ],
+            "GlobalSecondaryIndexes": [
+                {
+                    "IndexName": "TransformsByOwner",
+                    "KeySchema": [
+                        {"AttributeName": "ownerId", "KeyType": "HASH"},
+                        {"AttributeName": "createdAt", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+        },
+        {
+            "TableName": get_table_name("TransformExecutions"),
+            "KeySchema": [{"AttributeName": "executionId", "KeyType": "HASH"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "executionId", "AttributeType": "S"},
+                {"AttributeName": "transformId", "AttributeType": "S"},
+                {"AttributeName": "startedAt", "AttributeType": "N"},
+            ],
+            "GlobalSecondaryIndexes": [
+                {
+                    "IndexName": "ExecutionsByTransform",
+                    "KeySchema": [
+                        {"AttributeName": "transformId", "KeyType": "HASH"},
+                        {"AttributeName": "startedAt", "KeyType": "RANGE"},
                     ],
                     "Projection": {"ProjectionType": "ALL"},
                 }
