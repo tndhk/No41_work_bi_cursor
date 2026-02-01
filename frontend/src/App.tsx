@@ -7,6 +7,10 @@ import LoginPage from './pages/LoginPage'
 import DashboardListPage from './pages/DashboardListPage'
 import DashboardViewPage from './pages/DashboardViewPage'
 import DashboardEditPage from './pages/DashboardEditPage'
+import DatasetListPage from './pages/DatasetListPage'
+import DatasetDetailPage from './pages/DatasetDetailPage'
+import TransformListPage from './pages/TransformListPage'
+import CardListPage from './pages/CardListPage'
 import { useAuthStore } from './stores/auth'
 import { authApi } from './lib/api'
 
@@ -42,9 +46,10 @@ function AppContent() {
           <Route path="dashboards" element={<DashboardListPage />} />
           <Route path="dashboards/:dashboardId" element={<DashboardViewPage />} />
           <Route path="dashboards/:dashboardId/edit" element={<DashboardEditPage />} />
-          <Route path="datasets" element={<div className="p-6"><h2 className="text-2xl font-bold">Dataset管理</h2><p className="mt-4 text-gray-600">実装予定...</p></div>} />
-          <Route path="cards" element={<div className="p-6"><h2 className="text-2xl font-bold">Card管理</h2><p className="mt-4 text-gray-600">実装予定...</p></div>} />
-          <Route path="transforms" element={<div className="p-6"><h2 className="text-2xl font-bold">Transform管理</h2><p className="mt-4 text-gray-600">実装予定...</p></div>} />
+          <Route path="datasets" element={<DatasetListPage />} />
+          <Route path="datasets/:datasetId" element={<DatasetDetailPage />} />
+          <Route path="cards" element={<CardListPage />} />
+          <Route path="transforms" element={<TransformListPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
