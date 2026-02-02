@@ -82,13 +82,13 @@
 ### 優先度: 低（統合機能）
 
 #### 7. Chatbot API
-- [ ] `backend/app/services/chatbot_service.py` - Vertex AI連携
-- [ ] Datasetサマリ生成
-- [ ] レート制限
+- [x] `backend/app/services/chatbot_service.py` - Vertex AI連携
+- [x] Datasetサマリ生成
+- [x] レート制限
 
 #### 8. Chatbot UI
-- [ ] `frontend/src/components/chatbot/ChatbotPanel.tsx`
-- [ ] 会話履歴表示
+- [x] `frontend/src/components/chatbot/ChatbotPanel.tsx`
+- [x] 会話履歴表示
 
 #### 9. 監査ログ
 - [ ] AuditLogsテーブル操作
@@ -112,9 +112,10 @@
 3. ~~**フロントエンドDashboard編集**~~ → 完了
 4. ~~**Dataset/Card管理UI**~~ → 完了
 5. **次のステップ**:
-   - Pydantic v2警告解消（短時間で完了可能）
-   - E2Eテストセットアップ（品質保証）
-   - Chatbot機能（新機能追加）
+   - ~~Chatbot機能（新機能追加）~~ → 完了
+   - 監査ログ機能（セキュリティ要件）
+   - カード実行キャッシュ（性能改善）
+   - 技術的負債の解消
 
 ---
 

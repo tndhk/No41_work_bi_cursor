@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import FilterBar from './FilterBar'
 import CardContainer from './CardContainer'
+import ChatbotPanel from '../chatbot/ChatbotPanel'
 
 interface Dashboard {
   dashboard_id: string
@@ -20,20 +21,43 @@ interface DashboardViewerProps {
 
 export default function DashboardViewer({ dashboard, showEditLink = false }: DashboardViewerProps) {
   const [filters, setFilters] = useState<Record<string, any>>({})
+  const [isChatOpen, setIsChatOpen] = useState(false)
   const cards = dashboard.layout?.cards || []
 
   return (
     <div className="p-6">
       <div className="mb-6 flex justify-between items-center">
         <h2 className="text-2xl font-bold">{dashboard.name}</h2>
-        {showEditLink && (dashboard.permission === 'owner' || dashboard.permission === 'editor') && (
-          <Link
-            to={`/dashboards/${dashboard.dashboard_id}/edit`}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm flex items-center gap-2"
+            aria-label="チャットを開く"
           >
-            編集
-          </Link>
-        )}
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+              />
+            </svg>
+            <span>データを質問</span>
+          </button>
+          {showEditLink && (dashboard.permission === 'owner' || dashboard.permission === 'editor') && (
+            <Link
+              to={`/dashboards/${dashboard.dashboard_id}/edit`}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"
+            >
+              編集
+            </Link>
+          )}
+        </div>
       </div>
       <FilterBar
         filters={dashboard.filters}
@@ -54,6 +78,12 @@ export default function DashboardViewer({ dashboard, showEditLink = false }: Das
           </div>
         )}
       </div>
+      
+      <ChatbotPanel
+        dashboardId={dashboard.dashboard_id}
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+      />
     </div>
   )
 }
