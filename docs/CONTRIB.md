@@ -71,6 +71,8 @@ npm run test         # Run tests
 
 Backend uses Python with Poetry for dependency management. Common commands:
 
+**注: バックエンド開発では基本的にDocker Composeを使用することを推奨します。ローカル実行は環境構築が必要です。**
+
 ```bash
 cd backend
 
@@ -80,19 +82,26 @@ poetry install
 # Run development server
 poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Run tests
+# Run tests（非推奨: Docker Composeの使用を推奨）
 poetry run pytest tests/ -v
 
-# Run tests with coverage
+# Run tests with coverage（非推奨: Docker Composeの使用を推奨）
 poetry run pytest tests/ --cov=app --cov-report=html
 ```
 
 ### Backend Development
 
+Docker Composeを使った開発フロー:
+
 ```bash
-cd backend
-poetry install       # Install dependencies
-poetry run pytest tests/ -v  # Run tests
+# サービス起動
+docker compose up -d
+
+# テスト実行
+docker compose run --rm api pytest tests/ -v
+
+# コンテナ内でシェルを開く
+docker compose run --rm api bash
 ```
 
 ## Environment Variables
@@ -134,28 +143,38 @@ All environment variables are defined in `.env.example`. Copy to `.env.local` an
 
 ### Backend Tests
 
-Run backend tests using Docker Compose:
+**推奨: Docker Composeを使用してテストを実行**
+
+このプロジェクトでは、環境の一貫性を保つため**Docker Composeを使用したテスト実行を推奨**しています。Docker Composeを使用することで、DynamoDB Local、MinIO、その他の依存サービスが自動的に起動し、ローカル環境の違いによる問題を回避できます。
 
 ```bash
-# Run all tests
+# 全テスト実行
 docker compose run --rm api pytest tests/ -v
 
-# Run specific test file
+# 特定のテストファイルを実行
 docker compose run --rm api pytest tests/test_users.py -v
 
-# Run with coverage
+# カバレッジ付きで実行
 docker compose run --rm api pytest tests/ --cov=app --cov-report=term-missing
 
-# Run tests matching a pattern
+# パターンマッチでテスト実行
 docker compose run --rm api pytest tests/ -k "test_user" -v
 ```
 
-Or run locally with Poetry:
+**ローカルでの実行（非推奨）**
+
+ローカル環境で直接実行する場合は、以下の前提条件を満たす必要があります:
+- Python 3.11および全依存パッケージのインストール
+- DynamoDB Local、MinIOなどの依存サービスが起動済み
+- 環境変数の適切な設定
 
 ```bash
 cd backend
+poetry install  # 依存パッケージのインストール
 poetry run pytest tests/ -v
 ```
+
+注: ローカル実行では環境構築の手間が大きく、環境差異によるトラブルが発生しやすいため、Docker Composeの使用を強く推奨します。
 
 ### Frontend Tests
 
@@ -263,8 +282,11 @@ poetry run mypy app/
    - Update documentation if needed
 
 3. **Run tests and linting**
+   
+   **重要: テストは必ずDocker Composeで実行してください**
+   
    ```bash
-   # Backend
+   # Backend（Docker推奨）
    docker compose run --rm api pytest tests/ -v
    
    # Frontend

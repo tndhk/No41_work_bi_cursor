@@ -16,8 +16,8 @@
 
 - Docker 24.x
 - docker-compose 2.x
-- Python 3.11（ローカル開発時）
-- Node.js 20.x（ローカル開発時）
+
+**推奨**: 開発・テストは基本的にDocker Composeを使用します。ローカルでのPython/Node.js実行は環境構築が必要です。
 
 ### 起動方法
 
@@ -33,4 +33,14 @@ docker-compose up -d
 # MinIO Console: http://localhost:9001
 ```
 
-詳細は [docs/](docs/) を参照してください。
+### テスト実行
+
+```bash
+# バックエンドテスト（Docker推奨）
+docker compose run --rm api pytest tests/ -v
+
+# フロントエンドテスト
+cd frontend && npm run test
+```
+
+詳細は [docs/CONTRIB.md](docs/CONTRIB.md) を参照してください。
