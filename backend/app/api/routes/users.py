@@ -21,7 +21,7 @@ async def list_users_endpoint(
     users, total = await list_users(limit=limit, offset=offset, q=q)
     
     return {
-        "data": [UserResponse(**user.dict()) for user in users],
+        "data": [UserResponse(**user.model_dump()) for user in users],
         "pagination": {
             "total": total,
             "limit": limit,
@@ -42,5 +42,5 @@ async def get_user_endpoint(
         raise NotFoundError("User", user_id)
     
     return {
-        "data": UserResponse(**user.dict(), groups=[]),
+        "data": UserResponse(**user.model_dump(), groups=[]),
     }

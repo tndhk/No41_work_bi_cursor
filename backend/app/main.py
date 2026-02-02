@@ -10,6 +10,8 @@ from app.core.logging import setup_logging
 from app.core.middleware import RequestIDMiddleware
 from app.core.exceptions import BIException
 from app.api.routes import auth, users, chatbot
+from app.db.dynamodb import close_dynamodb
+from app.db.s3 import close_s3
 
 # ログ設定初期化
 setup_logging()
@@ -101,6 +103,18 @@ app.include_router(filter_views.router, prefix="/api")
 # Transforms API
 from app.api.routes import transforms
 app.include_router(transforms.router, prefix="/api")
+
+# Test setup API (テスト環境のみ)
+if settings.allow_test_setup:
+    from app.api.routes import test_setup
+    app.include_router(test_setup.router, prefix="/api")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """アプリケーション終了時に接続を閉じる"""
+    await close_dynamodb()
+    await close_s3()
 
 
 @app.get("/health")

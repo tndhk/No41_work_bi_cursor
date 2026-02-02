@@ -1,0 +1,80 @@
+# Codemap Diff Report
+
+**Generated:** 2026-02-02
+**Previous Version:** None (Initial generation)
+
+## Summary
+
+This is the initial generation of codemaps. All files are new.
+
+## Files Created
+
+### codemaps/architecture.md
+- **Status:** NEW
+- **Size:** ~150 lines
+- **Content:** System architecture overview, component relationships, data flows, dependencies
+
+### codemaps/backend.md
+- **Status:** NEW
+- **Size:** ~200 lines
+- **Content:** Backend directory structure, API routes, service layer, database schema
+
+### codemaps/frontend.md
+- **Status:** NEW
+- **Size:** ~200 lines
+- **Content:** Frontend directory structure, component hierarchy, routing, state management
+
+### codemaps/data.md
+- **Status:** NEW
+- **Size:** ~250 lines
+- **Content:** Data models, entity relationships, DynamoDB schema, S3 storage schema
+
+## Change Percentage
+
+**Overall Change:** 100% (Initial generation)
+
+Since this is the first version, all content is new. Future updates will show percentage changes.
+
+## Key Sections Documented
+
+### Architecture
+- System architecture diagram
+- Component overview (Frontend, Backend, Executor)
+- Data flow diagrams
+- Security architecture
+
+### Backend
+- Directory structure
+- All API routes (10 route modules)
+- Service layer organization
+- Database tables (8 DynamoDB tables)
+- External dependencies
+
+### Frontend
+- Component hierarchy
+- Routing structure
+- State management (TanStack Query + Zustand)
+- API integration patterns
+- Build configuration
+
+### Data Models
+- Entity relationships
+- Core Pydantic models (8 models)
+- DynamoDB table schemas
+- S3 storage structure
+- Data type definitions
+- Data flow processes
+
+## Next Steps
+
+1. Review codemaps for accuracy
+2. Update when significant architectural changes occur
+3. Regenerate when >30% changes detected
+4. Maintain freshness timestamps
+
+## Notes
+
+- All codemaps include freshness timestamps
+- Focus on high-level structure, not implementation details
+- Token-lean format for efficient documentation
+- Dependency graphs included where relevant

@@ -7,6 +7,7 @@ import uuid
 from app.runner import execute_card as run_card, execute_transform as run_transform, ExecutionError
 from app.queue import ExecutionQueue, QueueFullError
 from app.config import settings
+from app.db import close_s3
 
 app = FastAPI(
     title="BI Executor",
@@ -34,9 +35,10 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """アプリケーション終了時にワーカーを停止"""
+    """アプリケーション終了時にワーカーを停止し、接続を閉じる"""
     card_queue.stop()
     transform_queue.stop()
+    await close_s3()
 
 
 class CardExecuteRequest(BaseModel):

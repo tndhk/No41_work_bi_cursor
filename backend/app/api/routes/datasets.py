@@ -327,5 +327,5 @@ async def get_dataset_preview_endpoint(
         raise BadRequestError(str(e))
     
     return {
-        "data": preview.dict()
+        "data": preview.model_dump()
     }

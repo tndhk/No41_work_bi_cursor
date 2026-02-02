@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "json"
     
+    # テスト設定
+    allow_test_setup: bool = False
+    
     def model_post_init(self, __context):
         """バリデーション"""
         if len(self.jwt_secret_key) < 32:

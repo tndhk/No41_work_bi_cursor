@@ -224,5 +224,5 @@ async def preview_card_endpoint(
         raise ExecutionError(str(e))
     
     return {
-        "data": preview.dict()
+        "data": preview.model_dump()
     }

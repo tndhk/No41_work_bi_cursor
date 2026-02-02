@@ -26,6 +26,7 @@ class Settings(BaseSettings):
 settings = Settings()
 
 _s3_client = None
+_s3_client_ctx = None
 
 
 def get_bucket_name(bucket_type: Literal["datasets", "static"]) -> str:
@@ -43,7 +44,7 @@ def get_bucket_name(bucket_type: Literal["datasets", "static"]) -> str:
 
 async def get_s3_client():
     """S3クライアントを取得（シングルトン）"""
-    global _s3_client
+    global _s3_client, _s3_client_ctx
     
     if _s3_client is None:
         session = aioboto3.Session()
@@ -63,15 +64,19 @@ async def get_s3_client():
             client_kwargs["aws_access_key_id"] = settings.s3_access_key
             client_kwargs["aws_secret_access_key"] = settings.s3_secret_key
         
-        _s3_client = session.client("s3", **client_kwargs)
+        context = session.client("s3", **client_kwargs)
+        # aioboto3 の context manager を保持し、クライアントを取得
+        _s3_client_ctx = context
+        _s3_client = await context.__aenter__()
     
     return _s3_client
 
 
 async def close_s3():
     """S3接続を閉じる"""
-    global _s3_client
+    global _s3_client, _s3_client_ctx
     
-    if _s3_client:
-        await _s3_client.close()
+    if _s3_client_ctx is not None:
+        await _s3_client_ctx.__aexit__(None, None, None)
+        _s3_client_ctx = None
         _s3_client = None

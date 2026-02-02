@@ -9,7 +9,8 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "test": "vitest",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -47,6 +48,7 @@
     "vite": "^5.1.0",
     "vitest": "^1.2.0",
     "@testing-library/react": "^14.1.2",
-    "@testing-library/jest-dom": "^6.2.0"
+    "@testing-library/jest-dom": "^6.2.0",
+    "@playwright/test": "^1.40.0"
   }
 }

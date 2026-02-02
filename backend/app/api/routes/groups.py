@@ -106,7 +106,7 @@ async def get_group_endpoint(
             created_at=group.created_at,
             updated_at=group.updated_at,
             members=members,
-        ).dict()
+        ).model_dump()
     }
 
 

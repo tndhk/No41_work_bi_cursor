@@ -28,6 +28,9 @@
 - [x] フロントエンドDashboard編集画面（レイアウト編集・自動保存）
 - [x] React Router + 保護ルート
 - [x] テストスイート安定化（84テストパス）
+- [x] Dataset管理UI（一覧・詳細・取り込み・プレビュー）
+- [x] Transform管理UI（一覧・編集・Monaco Editor統合）
+- [x] Card管理UI（一覧・編集・Monaco Editor統合・プレビュー）
 
 ---
 
@@ -59,21 +62,22 @@
 - [x] `frontend/src/components/dashboard/DashboardViewer.tsx`
 
 #### 4. Dataset管理UI
-- [ ] `frontend/src/pages/DatasetListPage.tsx`
-- [ ] `frontend/src/components/dataset/DatasetList.tsx`
-- [ ] `frontend/src/components/dataset/DatasetImport.tsx`
-- [ ] `frontend/src/components/dataset/DatasetPreview.tsx`
+- [x] `frontend/src/pages/DatasetListPage.tsx`
+- [x] `frontend/src/pages/DatasetDetailPage.tsx`
+- [x] `frontend/src/components/dataset/DatasetList.tsx`
+- [x] `frontend/src/components/dataset/DatasetImport.tsx`
+- [x] `frontend/src/components/dataset/DatasetPreview.tsx`
 
 #### 5. Transform管理UI
-- [ ] `frontend/src/pages/TransformListPage.tsx`
-- [ ] `frontend/src/components/transform/TransformList.tsx`
-- [ ] `frontend/src/components/transform/TransformEditor.tsx`（Monaco Editor）
+- [x] `frontend/src/pages/TransformListPage.tsx`
+- [x] `frontend/src/components/transform/TransformList.tsx`
+- [x] `frontend/src/components/transform/TransformEditor.tsx`（Monaco Editor統合済み）
 
 #### 6. Card管理UI
-- [ ] `frontend/src/pages/CardListPage.tsx`
-- [ ] `frontend/src/components/card/CardList.tsx`
-- [ ] `frontend/src/components/card/CardEditor.tsx`（Monaco Editor）
-- [ ] `frontend/src/components/card/CardPreview.tsx`
+- [x] `frontend/src/pages/CardListPage.tsx`
+- [x] `frontend/src/components/card/CardList.tsx`
+- [x] `frontend/src/components/card/CardEditor.tsx`（Monaco Editor統合済み）
+- [x] `frontend/src/components/card/CardPreview.tsx`
 
 ### 優先度: 低（統合機能）
 
@@ -103,17 +107,20 @@
 
 ## 推奨実装順序
 
-1. **Transforms API** → Dataset加工に必要
-2. **Executor完成** → Card/Transform実行の本格化
-3. **フロントエンドDashboard編集** → ユーザ向け主要機能
-4. **Dataset/Card管理UI** → データ管理画面
-5. **残りの機能**
+1. ~~**Transforms API**~~ → 完了
+2. ~~**Executor完成**~~ → 完了
+3. ~~**フロントエンドDashboard編集**~~ → 完了
+4. ~~**Dataset/Card管理UI**~~ → 完了
+5. **次のステップ**:
+   - Pydantic v2警告解消（短時間で完了可能）
+   - E2Eテストセットアップ（品質保証）
+   - Chatbot機能（新機能追加）
 
 ---
 
 ## 技術的負債・改善点
 
-- [ ] DynamoDB操作をaioboto3のコンテキストマネージャで適切に管理
+- [x] DynamoDB操作をaioboto3のコンテキストマネージャで適切に管理
 - [ ] GSI（グローバルセカンダリインデックス）を使用したクエリ最適化
 - [ ] 認証のリフレッシュトークン対応
 - [ ] OpenAPI仕様の自動生成と検証
