@@ -73,11 +73,13 @@ export default function ChatbotPanel({ dashboardId, isOpen, onClose }: ChatbotPa
 
       setMessages((prev) => [...prev, assistantMessage])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'エラーが発生しました')
+      const errorMsg = err instanceof Error ? err.message : 'エラーが発生しました'
+      setError(errorMsg)
+      
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: err instanceof Error ? err.message : 'エラーが発生しました',
+        content: errorMsg,
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorMessage])

@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 import io
+import logging
 
 import pandas as pd
 import pyarrow.parquet as pq
@@ -14,6 +15,8 @@ from app.core.config import settings
 from app.core.exceptions import NotFoundError
 from app.services.dataset_service import get_dataset
 from app.services.dashboard_service import get_referenced_datasets
+
+logger = logging.getLogger(__name__)
 
 
 RATE_LIMIT_TABLE = get_table_name("RateLimits")
@@ -87,7 +90,41 @@ async def check_rate_limit(user_id: str) -> None:
         raise
     except Exception as e:
         # レート制限チェック失敗時は通過させる（可用性優先）
-        pass
+        logger.warning(f"Rate limit check failed for user {user_id}: {e}")
+
+
+def _calculate_column_stats(df: pd.DataFrame, col: str) -> Dict[str, Any]:
+    """列の統計情報を計算
+    
+    Args:
+        df: DataFrame
+        col: 列名
+        
+    Returns:
+        列の統計情報
+    """
+    col_stats = {"column": str(col)}
+    
+    if pd.api.types.is_numeric_dtype(df[col]):
+        col_stats["type"] = "numeric"
+        if not df[col].isna().all():
+            col_stats["min"] = float(df[col].min())
+            col_stats["max"] = float(df[col].max())
+            col_stats["mean"] = float(df[col].mean())
+        else:
+            col_stats["min"] = None
+            col_stats["max"] = None
+            col_stats["mean"] = None
+        col_stats["null_count"] = int(df[col].isna().sum())
+    else:
+        col_stats["type"] = "categorical"
+        col_stats["unique_count"] = int(df[col].nunique())
+        col_stats["null_count"] = int(df[col].isna().sum())
+        if not df[col].isna().all():
+            top_values = df[col].value_counts().head(3).to_dict()
+            col_stats["top_values"] = {str(k): int(v) for k, v in top_values.items()}
+    
+    return col_stats
 
 
 async def generate_dataset_summary(dataset_id: str) -> Dict[str, Any]:
@@ -103,7 +140,6 @@ async def generate_dataset_summary(dataset_id: str) -> Dict[str, Any]:
     if not dataset:
         raise NotFoundError("Dataset", dataset_id)
     
-    # S3からParquetを読み込む
     s3_client = await get_s3_client()
     bucket_name = get_bucket_name("datasets")
     
@@ -111,12 +147,10 @@ async def generate_dataset_summary(dataset_id: str) -> Dict[str, Any]:
         response = await s3_client.get_object(Bucket=bucket_name, Key=dataset.s3_path)
         parquet_content = await response["Body"].read()
         
-        # Parquetを読み込む
         parquet_buffer = io.BytesIO(parquet_content)
         table = pq.read_table(parquet_buffer)
         df = table.to_pandas()
         
-        # スキーマ情報
         schema_info = [
             {
                 "name": col.name,
@@ -126,32 +160,8 @@ async def generate_dataset_summary(dataset_id: str) -> Dict[str, Any]:
             for col in dataset.schema
         ]
         
-        # サンプル行（先頭5行）
         sample_rows = df.head(5).to_dict("records")
-        
-        # 統計情報
-        stats = {}
-        for col in df.columns:
-            col_stats = {"column": str(col)}
-            
-            if pd.api.types.is_numeric_dtype(df[col]):
-                # 数値列: min, max, mean
-                col_stats["type"] = "numeric"
-                col_stats["min"] = float(df[col].min()) if not df[col].isna().all() else None
-                col_stats["max"] = float(df[col].max()) if not df[col].isna().all() else None
-                col_stats["mean"] = float(df[col].mean()) if not df[col].isna().all() else None
-                col_stats["null_count"] = int(df[col].isna().sum())
-            else:
-                # カテゴリ列: ユニーク数
-                col_stats["type"] = "categorical"
-                col_stats["unique_count"] = int(df[col].nunique())
-                col_stats["null_count"] = int(df[col].isna().sum())
-                # トップ3の値
-                if not df[col].isna().all():
-                    top_values = df[col].value_counts().head(3).to_dict()
-                    col_stats["top_values"] = {str(k): int(v) for k, v in top_values.items()}
-            
-            stats[str(col)] = col_stats
+        stats = {str(col): _calculate_column_stats(df, col) for col in df.columns}
         
         return {
             "dataset_id": dataset_id,
@@ -164,6 +174,27 @@ async def generate_dataset_summary(dataset_id: str) -> Dict[str, Any]:
         }
     except Exception as e:
         raise ValueError(f"Failed to generate dataset summary: {e}")
+
+
+def _format_numeric_stats(col_name: str, col_stats: Dict[str, Any]) -> str:
+    """数値列の統計情報をフォーマット"""
+    mean_val = col_stats.get('mean')
+    mean_str = f"{mean_val:.2f}" if mean_val is not None else "N/A"
+    return (
+        f"- {col_name}: "
+        f"min={col_stats.get('min')}, "
+        f"max={col_stats.get('max')}, "
+        f"mean={mean_str}"
+    )
+
+
+def _format_categorical_stats(col_name: str, col_stats: Dict[str, Any]) -> List[str]:
+    """カテゴリ列の統計情報をフォーマット"""
+    lines = [f"- {col_name}: {col_stats['unique_count']} unique values"]
+    if 'top_values' in col_stats:
+        top_str = ", ".join(f"{k}({v})" for k, v in col_stats['top_values'].items())
+        lines.append(f"  Top values: {top_str}")
+    return lines
 
 
 def _build_prompt(message: str, dataset_summaries: List[Dict[str, Any]]) -> str:
@@ -184,22 +215,25 @@ def _build_prompt(message: str, dataset_summaries: List[Dict[str, Any]]) -> str:
     ]
     
     for summary in dataset_summaries:
-        prompt_parts.append(f"## Dataset: {summary['dataset_name']}")
-        prompt_parts.append(f"- 行数: {summary['row_count']:,}")
-        prompt_parts.append(f"- 列数: {summary['column_count']}")
-        prompt_parts.append("")
+        prompt_parts.extend([
+            f"## Dataset: {summary['dataset_name']}",
+            f"- 行数: {summary['row_count']:,}",
+            f"- 列数: {summary['column_count']}",
+            "",
+            "### スキーマ"
+        ])
         
-        prompt_parts.append("### スキーマ")
         for col in summary['schema']:
             prompt_parts.append(f"- {col['name']} ({col['dtype']})")
         prompt_parts.append("")
         
         prompt_parts.append("### サンプルデータ（先頭5行）")
         if summary['sample_rows']:
-            # 最初の行をヘッダーとして表示
             headers = list(summary['sample_rows'][0].keys())
-            prompt_parts.append(" | ".join(headers))
-            prompt_parts.append(" | ".join(["---"] * len(headers)))
+            prompt_parts.extend([
+                " | ".join(headers),
+                " | ".join(["---"] * len(headers))
+            ])
             for row in summary['sample_rows']:
                 prompt_parts.append(" | ".join(str(row.get(h, "")) for h in headers))
         prompt_parts.append("")
@@ -207,23 +241,17 @@ def _build_prompt(message: str, dataset_summaries: List[Dict[str, Any]]) -> str:
         prompt_parts.append("### 統計情報")
         for col_name, col_stats in summary['statistics'].items():
             if col_stats['type'] == 'numeric':
-                prompt_parts.append(
-                    f"- {col_name}: min={col_stats.get('min')}, "
-                    f"max={col_stats.get('max')}, mean={col_stats.get('mean'):.2f}"
-                )
+                prompt_parts.append(_format_numeric_stats(col_name, col_stats))
             else:
-                prompt_parts.append(
-                    f"- {col_name}: {col_stats['unique_count']} unique values"
-                )
-                if 'top_values' in col_stats:
-                    top_str = ", ".join(f"{k}({v})" for k, v in col_stats['top_values'].items())
-                    prompt_parts.append(f"  Top values: {top_str}")
+                prompt_parts.extend(_format_categorical_stats(col_name, col_stats))
         prompt_parts.append("")
     
-    prompt_parts.append("# 質問")
-    prompt_parts.append(message)
-    prompt_parts.append("")
-    prompt_parts.append("回答は日本語で、簡潔かつ分かりやすく説明してください。")
+    prompt_parts.extend([
+        "# 質問",
+        message,
+        "",
+        "回答は日本語で、簡潔かつ分かりやすく説明してください。"
+    ])
     
     return "\n".join(prompt_parts)
 

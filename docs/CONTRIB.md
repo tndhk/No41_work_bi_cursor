@@ -51,11 +51,11 @@ All scripts are run from the `frontend/` directory:
 
 | Script | Command | Purpose |
 | --- | --- | --- |
-| `dev` | `vite` | Run Vite development server with hot reload |
+| `dev` | `vite` | Run Vite development server with hot reload (http://localhost:5173) |
 | `build` | `tsc && vite build` | Type-check TypeScript and build for production |
 | `lint` | `eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0` | Lint frontend code with ESLint |
 | `preview` | `vite preview` | Preview production build locally |
-| `test` | `vitest` | Run frontend unit tests |
+| `test` | `vitest` | Run frontend unit tests with Vitest |
 | `test:coverage` | `vitest --coverage` | Run tests with coverage report |
 | `test:e2e` | `playwright test` | Run end-to-end tests with Playwright |
 
@@ -145,9 +145,17 @@ All environment variables are defined in `.env.example`. Copy to `.env.local` an
 
 ### Backend Tests
 
-**推奨: Docker Composeを使用してテストを実行**
+**重要: このプロジェクトはDocker Composeでのテスト実行が必須です**
 
-このプロジェクトでは、環境の一貫性を保つため**Docker Composeを使用したテスト実行を推奨**しています。Docker Composeを使用することで、DynamoDB Local、MinIO、その他の依存サービスが自動的に起動し、ローカル環境の違いによる問題を回避できます。
+このプロジェクトは**Dockerベースのプロジェクト**です。テストは必ず**Docker Composeを使用して実行**してください。
+
+**理由:**
+- DynamoDB LocalとMinIOが必須の依存サービス
+- ローカル環境では依存サービスが起動していないためエラーになる
+- PEP 668によりシステムPythonへの直接インストールが制限されている
+- Docker Composeを使用すれば全ての依存サービスが自動的に起動し、環境の一貫性が保たれる
+
+**⚠️ ローカルで`pytest`を直接実行しないでください。必ずDocker Composeを使用してください。**
 
 ```bash
 # 全テスト実行
@@ -163,13 +171,19 @@ docker compose run --rm api pytest tests/ --cov=app --cov-report=term-missing
 docker compose run --rm api pytest tests/ -k "test_user" -v
 ```
 
-**ローカルでの実行（オプション）**
+**ローカルでの実行（非推奨）**
 
-ローカル環境での実行も可能ですが、依存サービス（DynamoDB Local、MinIO）の起動と環境変数の設定が必要です:
+⚠️ **ローカル環境での直接実行は推奨しません。** 依存サービス（DynamoDB Local、MinIO）を別途起動し、環境変数を正しく設定する必要があるため、Docker Composeの使用を強く推奨します。
+
+どうしてもローカルで実行する場合:
 
 ```bash
+# 依存サービスを起動（別ターミナルで）
+docker compose up -d dynamodb-local minio
+
 cd backend
 poetry install
+# 環境変数を設定してから実行
 poetry run pytest tests/ -v
 ```
 
@@ -281,8 +295,11 @@ poetry run mypy app/
 3. **Run tests and linting**
    
    ```bash
-   # Backend（Docker Compose使用）
+   # Backend（必ずDocker Composeを使用）
    docker compose run --rm api pytest tests/ -v
+   
+   # テスト後はDockerを停止
+   docker compose down
    
    # Frontend
    cd frontend && npm run lint && npm run test
@@ -306,22 +323,61 @@ work_BI/
 ├── backend/              # FastAPI backend
 │   ├── app/
 │   │   ├── api/          # API routes
-│   │   ├── core/         # Core utilities (config, security)
+│   │   │   └── routes/   # Route handlers (auth, cards, dashboards, datasets, chatbot, etc.)
+│   │   ├── core/         # Core utilities (config, security, logging, middleware)
 │   │   ├── db/           # Database clients (DynamoDB, S3)
 │   │   ├── models/       # Pydantic models
 │   │   └── services/     # Business logic
-│   └── tests/            # Backend tests
+│   └── tests/            # Backend tests (pytest)
 ├── executor/             # Python execution service
-│   ├── app/
-│   └── tests/
+│   ├── app/              # Sandboxed code execution
+│   └── tests/            # Executor tests
 ├── frontend/             # React frontend
 │   ├── src/
-│   │   ├── components/    # React components
+│   │   ├── components/   # React components
+│   │   │   ├── card/     # Card components
+│   │   │   ├── chatbot/  # Chatbot UI (NEW)
+│   │   │   ├── common/   # Shared components
+│   │   │   ├── dashboard/ # Dashboard viewer and editor
+│   │   │   ├── dataset/  # Dataset management
+│   │   │   └── transform/ # Transform components
 │   │   ├── pages/        # Page components
-│   │   └── stores/       # Zustand stores
-│   └── tests/
-└── docs/                 # Documentation
+│   │   └── stores/       # Zustand stores (auth state)
+│   ├── e2e/              # Playwright E2E tests
+│   └── tests/            # Unit tests
+├── docs/                 # Documentation
+│   ├── plans/            # Implementation plans and decisions
+│   └── codemaps/         # Architecture documentation
+└── scripts/              # Initialization scripts (DynamoDB, S3)
 ```
+
+## Features
+
+### Chatbot (NEW)
+
+The Chatbot feature allows users to ask questions about dashboard data using natural language. It leverages Google Cloud Vertex AI (Gemini) to generate insights based on dataset summaries.
+
+**Architecture:**
+- Backend: `backend/app/services/chatbot_service.py` - Vertex AI integration, dataset summarization, rate limiting
+- Frontend: `frontend/src/components/chatbot/ChatbotPanel.tsx` - Chat UI with conversation history
+- Rate limiting: 10 requests per minute per user (DynamoDB-based sliding window)
+
+**Configuration:**
+- Requires `VERTEX_AI_PROJECT_ID` in `.env.local` (see Environment Variables section)
+- Optional: `VERTEX_AI_LOCATION` (default: `asia-northeast1`)
+- Optional: `VERTEX_AI_MODEL` (default: `gemini-1.5-pro`)
+
+**How it works:**
+1. User opens chat panel from dashboard view
+2. User asks a question about the data
+3. Backend generates summaries of referenced datasets (schema, samples, statistics)
+4. Prompt is sent to Vertex AI with dataset context
+5. AI response is returned and displayed in chat UI
+
+**Rate limiting:**
+- Implemented with DynamoDB TTL-based sliding window
+- Default: 10 requests per 60 seconds per user
+- Returns HTTP 429 when limit exceeded
 
 ## Common Development Tasks
 
@@ -330,22 +386,23 @@ work_BI/
 1. Create model in `backend/app/models/`
 2. Add service function in `backend/app/services/`
 3. Add route in `backend/app/api/routes/`
-4. Write tests in `backend/tests/`
+4. Write tests in `backend/tests/` (use moto for AWS mocking)
 5. Update API documentation in `docs/api-spec.md`
 
 ### Adding a New Frontend Component
 
 1. Create component in `frontend/src/components/`
-2. Add tests in `frontend/src/components/__tests__/`
-3. Update storybook (if applicable)
+2. Add tests in `frontend/src/components/__tests__/` (use Vitest + Testing Library)
+3. Add TypeScript interfaces for props
 4. Add to appropriate page
+5. Update E2E tests if critical user path
 
 ### Database Schema Changes
 
 1. Update model definitions in `backend/app/models/`
-2. Create migration script (if needed)
-3. Update tests
-4. Update documentation
+2. Update initialization scripts in `scripts/` if adding new tables
+3. Update tests with new schema
+4. Update documentation in `docs/design.md`
 
 ## Getting Help
 

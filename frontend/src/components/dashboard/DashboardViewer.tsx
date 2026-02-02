@@ -23,6 +23,7 @@ export default function DashboardViewer({ dashboard, showEditLink = false }: Das
   const [filters, setFilters] = useState<Record<string, any>>({})
   const [isChatOpen, setIsChatOpen] = useState(false)
   const cards = dashboard.layout?.cards || []
+  const canEdit = dashboard.permission === 'owner' || dashboard.permission === 'editor'
 
   return (
     <div className="p-6">
@@ -49,7 +50,7 @@ export default function DashboardViewer({ dashboard, showEditLink = false }: Das
             </svg>
             <span>データを質問</span>
           </button>
-          {showEditLink && (dashboard.permission === 'owner' || dashboard.permission === 'editor') && (
+          {showEditLink && canEdit && (
             <Link
               to={`/dashboards/${dashboard.dashboard_id}/edit`}
               className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm"

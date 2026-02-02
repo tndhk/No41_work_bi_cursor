@@ -17,7 +17,7 @@
 - Docker 24.x
 - docker-compose 2.x
 
-**推奨**: 開発・テストは基本的にDocker Composeを使用します。ローカルでのPython/Node.js実行は環境構築が必要です。
+**重要**: このプロジェクトはDockerベースです。開発・テストは**必ずDocker Composeを使用**してください。ローカル環境で直接実行すると依存サービスが起動していないためエラーになります。
 
 ### 起動方法
 
@@ -36,11 +36,16 @@ docker-compose up -d
 ### テスト実行
 
 ```bash
-# バックエンドテスト（Docker推奨）
+# バックエンドテスト（必ずDocker Composeを使用）
 docker compose run --rm api pytest tests/ -v
+
+# テスト完了後はDockerを停止
+docker compose down
 
 # フロントエンドテスト
 cd frontend && npm run test
 ```
+
+**⚠️ 注意:** ローカルで`pytest`を直接実行しないでください。DynamoDB LocalやMinIOなどの依存サービスが必要なため、必ずDocker Composeを使用してください。
 
 詳細は [docs/CONTRIB.md](docs/CONTRIB.md) を参照してください。

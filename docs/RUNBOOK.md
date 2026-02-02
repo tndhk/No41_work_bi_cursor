@@ -227,6 +227,9 @@ aws cloudwatch get-metric-statistics \
 - API error rate
 - Card execution timeout rate
 - Transform execution success rate
+- Chatbot rate limit exceeded rate
+- Chatbot response time
+- Vertex AI API errors
 - ECS task CPU/Memory utilization
 - DynamoDB throttled requests
 - S3 request errors
@@ -237,9 +240,12 @@ Configure CloudWatch alarms for:
 
 - API error rate > 5%
 - Card execution timeout rate > 10%
+- Chatbot rate limit exceeded > 20% of requests
+- Vertex AI API errors > 1%
 - ECS service running count < desired count
 - DynamoDB throttled requests > 0
 - API response time p95 > 3 seconds
+- Chatbot response time p95 > 10 seconds
 
 ## Rollback Procedure
 
@@ -449,6 +455,54 @@ aws cloudwatch get-metric-statistics \
   --statistics Sum \
   --region ap-northeast-1
 ```
+
+### Chatbot Issues
+
+**Symptoms:**
+- Chatbot returns errors or empty responses
+- Rate limit errors (HTTP 429)
+- Vertex AI API errors
+- Slow chatbot response times
+
+**Solutions:**
+- Verify `VERTEX_AI_PROJECT_ID` is configured correctly
+- Check Vertex AI service account credentials
+- Verify Vertex AI API is enabled in GCP project
+- Check rate limit settings in `chatbot_service.py`
+- Review dataset sizes (large datasets slow down summary generation)
+- Check DynamoDB RateLimits table for correct TTL
+
+**Investigation:**
+```bash
+# Check chatbot-related logs
+aws logs filter-log-events \
+  --log-group-name /ecs/bi-${ENV}-api \
+  --filter-pattern "chatbot" \
+  --start-time $(date -d '1 hour ago' +%s)000 \
+  --region ap-northeast-1
+
+# Check Vertex AI errors
+aws logs filter-log-events \
+  --log-group-name /ecs/bi-${ENV}-api \
+  --filter-pattern "vertexai" \
+  --start-time $(date -d '1 hour ago' +%s)000 \
+  --region ap-northeast-1
+
+# Check rate limit table
+aws dynamodb scan \
+  --table-name bi_RateLimits \
+  --filter-expression "begins_with(#k, :prefix)" \
+  --expression-attribute-names '{"#k":"key"}' \
+  --expression-attribute-values '{":prefix":{"S":"chatbot_"}}' \
+  --region ap-northeast-1
+```
+
+**Rate Limit Adjustments:**
+If rate limits are too restrictive, update constants in `backend/app/services/chatbot_service.py`:
+- `RATE_LIMIT_WINDOW_SECONDS`: Time window (default: 60)
+- `RATE_LIMIT_MAX_REQUESTS`: Max requests per window (default: 10)
+
+After updating, redeploy the API service.
 
 ## Emergency Procedures
 
