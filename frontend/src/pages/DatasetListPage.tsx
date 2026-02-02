@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { datasetsApi, type Dataset } from '../lib/datasets'
+import { datasetsApi } from '../lib/datasets'
 import DatasetList from '../components/dataset/DatasetList'
 import DatasetImport from '../components/dataset/DatasetImport'
 

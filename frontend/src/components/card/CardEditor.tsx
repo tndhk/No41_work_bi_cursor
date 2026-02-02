@@ -23,8 +23,6 @@ interface CardEditorProps {
 }
 
 export default function CardEditor({ card, onSave, onCancel }: CardEditorProps) {
-  const [usedColumns, setUsedColumns] = useState<string[]>(card?.used_columns || [])
-  const [filterApplicable, setFilterApplicable] = useState<string[]>(card?.filter_applicable || [])
   const [showPreview, setShowPreview] = useState(false)
 
   const { data: datasets } = useQuery({
@@ -55,8 +53,6 @@ export default function CardEditor({ card, onSave, onCancel }: CardEditorProps) 
         used_columns: card.used_columns.join(', '),
         filter_applicable: card.filter_applicable.join(', '),
       })
-      setUsedColumns(card.used_columns)
-      setFilterApplicable(card.filter_applicable)
     }
   }, [card, form])
 
@@ -106,9 +102,6 @@ export default function CardEditor({ card, onSave, onCancel }: CardEditorProps) 
     const filterApps = data.filter_applicable
       ? data.filter_applicable.split(',').map((s) => s.trim()).filter(Boolean)
       : []
-
-    setUsedColumns(usedCols)
-    setFilterApplicable(filterApps)
 
     const payload = {
       formData: data,

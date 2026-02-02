@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
-import { datasetsApi, type DatasetCreateRequest, type S3ImportRequest } from '../../lib/datasets'
+import { datasetsApi } from '../../lib/datasets'
 
 const localCsvSchema = z.object({
   name: z.string().min(1, '名前は必須です'),

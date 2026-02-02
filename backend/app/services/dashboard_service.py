@@ -56,18 +56,32 @@ def _dict_to_dynamodb_item(data: dict) -> dict:
     """辞書をDynamoDBアイテム形式に変換"""
     item = {}
     for key, value in data.items():
-        if isinstance(value, str):
+        if value is None:
+            continue  # None値はスキップ
+        elif isinstance(value, bool):
+            item[key] = {"BOOL": value}
+        elif isinstance(value, str):
             item[key] = {"S": value}
         elif isinstance(value, (int, float)):
             item[key] = {"N": str(value)}
-        elif isinstance(value, bool):
-            item[key] = {"BOOL": value}
         elif isinstance(value, dict):
             item[key] = {"M": _dict_to_dynamodb_item(value)}
         elif isinstance(value, list):
-            item[key] = {"L": [_dict_to_dynamodb_item(v) if isinstance(v, dict) else {"S": str(v)} for v in value]}
-        elif value is None:
-            continue  # None値はスキップ
+            list_items = []
+            for v in value:
+                if isinstance(v, bool):
+                    list_items.append({"BOOL": v})
+                elif isinstance(v, str):
+                    list_items.append({"S": v})
+                elif isinstance(v, (int, float)):
+                    list_items.append({"N": str(v)})
+                elif isinstance(v, dict):
+                    list_items.append({"M": _dict_to_dynamodb_item(v)})
+                elif v is None:
+                    list_items.append({"NULL": True})
+                else:
+                    list_items.append({"S": str(v)})
+            item[key] = {"L": list_items}
         else:
             item[key] = {"S": str(value)}
     return item
