@@ -23,6 +23,7 @@ services:
       - EXECUTOR_ENDPOINT=http://executor:8080
       - LOG_LEVEL=DEBUG
       - LOG_FORMAT=json
+      - ALLOW_TEST_SETUP=true
     volumes:
       - ./backend:/app
     depends_on:
