@@ -69,9 +69,9 @@ Located in `scripts/` directory. These should be run once during initial setup o
 
 | Script | Purpose | Usage |
 |--------|---------|-------|
-| `init_dynamodb.py` | Initialize DynamoDB tables (Users, Dashboards, Cards, Datasets, etc.) | `docker compose run --rm api python scripts/init_dynamodb.py` |
-| `init-dynamodb.sh` | Shell wrapper for `init_dynamodb.py` | `./scripts/init-dynamodb.sh` |
-| `init-s3.sh` | Initialize S3 buckets (datasets, static) | `./scripts/init-s3.sh` |
+| `init_tables.py` | Initialize all DynamoDB tables (Users, Groups, GroupMembers, Dashboards, DashboardShares, FilterViews, Cards, Datasets, Transforms, AuditLogs) | `docker compose run --rm api python scripts/init_tables.py` |
+| `init-dynamodb.sh` | Shell wrapper for DynamoDB table initialization | `./scripts/init-dynamodb.sh` |
+| `init-s3.sh` | Initialize S3 buckets (bi-datasets, bi-static) with proper configuration | `./scripts/init-s3.sh` |
 
 ## Docker Compose Commands
 
@@ -159,7 +159,7 @@ cp .env.example .env.local
 docker compose up -d
 
 # 4. Initialize database (first time only)
-docker compose run --rm api python scripts/init_dynamodb.py
+docker compose run --rm api python scripts/init_tables.py
 
 # 5. Initialize S3 (first time only)
 ./scripts/init-s3.sh

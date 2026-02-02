@@ -70,6 +70,7 @@ DYNAMODB_PATCH_TARGETS = [
     "app.services.dashboard_share_service.get_dynamodb_client",
     "app.services.filter_view_service.get_dynamodb_client",
     "app.services.transform_service.get_dynamodb_client",
+    "app.services.audit_log_service.get_dynamodb_client",
 ]
 
 S3_PATCH_TARGETS = [
@@ -432,6 +433,34 @@ def setup_dynamodb_tables(mock_dynamodb):
                     ],
                     "Projection": {"ProjectionType": "ALL"},
                 }
+            ],
+            "BillingMode": "PAY_PER_REQUEST",
+        },
+        {
+            "TableName": get_table_name("AuditLogs"),
+            "KeySchema": [{"AttributeName": "logId", "KeyType": "HASH"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "logId", "AttributeType": "S"},
+                {"AttributeName": "timestamp", "AttributeType": "N"},
+                {"AttributeName": "targetId", "AttributeType": "S"},
+            ],
+            "GlobalSecondaryIndexes": [
+                {
+                    "IndexName": "LogsByTarget",
+                    "KeySchema": [
+                        {"AttributeName": "targetId", "KeyType": "HASH"},
+                        {"AttributeName": "timestamp", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                },
+                {
+                    "IndexName": "LogsByTimestamp",
+                    "KeySchema": [
+                        {"AttributeName": "timestamp", "KeyType": "HASH"},
+                        {"AttributeName": "logId", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                },
             ],
             "BillingMode": "PAY_PER_REQUEST",
         },

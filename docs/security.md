@@ -688,6 +688,10 @@ class PermissionChecker:
 
 ### 5.2 監査ログ実装
 
+**参照権限:**
+- Dashboardオーナーのみ、自分のDashboardに関連する監査ログを参照可能
+- オーナー以外は403 Forbiddenを返す
+
 ```python
 # backend/app/services/audit_service.py
 from datetime import datetime

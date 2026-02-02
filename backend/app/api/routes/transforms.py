@@ -1,9 +1,9 @@
 """Transforms APIルート - TDD実装中"""
 from typing import Optional
-from fastapi import APIRouter, Depends, Query, status, Path
+from fastapi import APIRouter, Depends, Query, status, Path, Request
 from pydantic import BaseModel
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_request_id
 from app.core.exceptions import NotFoundError, ForbiddenError, ExecutionError
 from app.services.transform_service import (
     list_transforms,
@@ -15,6 +15,7 @@ from app.services.transform_service import (
     list_transform_executions,
 )
 from app.models.transform import Transform, TransformCreate, TransformUpdate, TransformExecution
+from app.services.audit_log_service import create_audit_log
 
 router = APIRouter(prefix="/transforms", tags=["transforms"])
 
@@ -220,17 +221,33 @@ async def delete_transform_endpoint(
 async def execute_transform_endpoint(
     transform_id: str = Path(..., description="Transform ID"),
     current_user: dict = Depends(get_current_user),
+    http_request: Request = ...,
 ):
     """Transform手動実行"""
     transform = await get_transform(transform_id)
     if not transform:
         raise NotFoundError("Transform", transform_id)
     
+    user_id = current_user["user_id"]
+    
     try:
-        execution = await execute_transform(transform_id, current_user["user_id"])
+        execution = await execute_transform(transform_id, user_id)
     except NotImplementedError:
+        # 未実装エラーは監査ログに記録しない（実装待ちのため）
         raise ExecutionError("Transform execution will be implemented in Phase 6 (Executor)")
     except Exception as e:
+        # 実行失敗ログ
+        await create_audit_log(
+            event_type="TRANSFORM_FAILED",
+            user_id=user_id,
+            target_type="Transform",
+            target_id=transform_id,
+            details={
+                "transform_name": transform.name,
+                "error_message": str(e),
+            },
+            request_id=get_request_id(http_request),
+        )
         raise ExecutionError(str(e))
     
     return {

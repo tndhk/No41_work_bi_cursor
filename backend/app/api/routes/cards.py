@@ -1,9 +1,9 @@
 """Cards APIルート"""
 from typing import Optional
-from fastapi import APIRouter, Depends, status, Query, Path
+from fastapi import APIRouter, Depends, status, Query, Path, Request
 from pydantic import BaseModel
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_request_id
 from app.core.exceptions import NotFoundError, ForbiddenError, ExecutionError
 from app.services.card_service import (
     create_card,
@@ -14,6 +14,7 @@ from app.services.card_service import (
     preview_card,
 )
 from app.models.card import Card, CardCreate, CardUpdate, CardPreviewRequest, CardPreviewResponse
+from app.services.audit_log_service import create_audit_log
 
 router = APIRouter(prefix="/cards", tags=["cards"])
 
@@ -210,17 +211,33 @@ async def preview_card_endpoint(
     card_id: str = Path(..., description="Card ID"),
     request: CardPreviewRequest = ...,
     current_user: dict = Depends(get_current_user),
+    http_request: Request = ...,
 ):
     """Cardプレビュー実行"""
     card = await get_card(card_id)
     if not card:
         raise NotFoundError("Card", card_id)
     
+    user_id = current_user["user_id"]
+    
     try:
         preview = await preview_card(card_id, request)
     except NotImplementedError:
+        # 未実装エラーは監査ログに記録しない（実装待ちのため）
         raise ExecutionError("Card preview execution will be implemented in Phase 6 (Executor)")
     except Exception as e:
+        # 実行失敗ログ
+        await create_audit_log(
+            event_type="CARD_EXECUTION_FAILED",
+            user_id=user_id,
+            target_type="Card",
+            target_id=card_id,
+            details={
+                "card_name": card.name,
+                "error_message": str(e),
+            },
+            request_id=get_request_id(http_request),
+        )
         raise ExecutionError(str(e))
     
     return {

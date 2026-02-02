@@ -1599,18 +1599,20 @@ Chatbot質問
 
 ### GET /api/audit-logs
 
-監査ログ取得（管理者のみ）
+監査ログ取得（Dashboardオーナーのみ）
 
 **Query Parameters:**
 | パラメータ | 型 | 必須 | デフォルト | 説明 |
 |-----------|-----|------|-----------|------|
-| limit | integer | No | 50 | 取得件数 |
-| offset | integer | No | 0 | オフセット |
-| event_type | string | No | - | イベント種別 |
-| user_id | string | No | - | 実行者ID |
-| target_id | string | No | - | 対象ID |
-| start_date | string | No | - | 開始日（ISO 8601） |
-| end_date | string | No | - | 終了日（ISO 8601） |
+| dashboard_id | string | Yes | - | Dashboard ID（必須） |
+| start_time | string | No | - | 開始時刻（ISO 8601形式） |
+| end_time | string | No | - | 終了時刻（ISO 8601形式） |
+| event_type | string | No | - | イベントタイプ |
+| limit | integer | No | 100 | 取得件数（1-1000） |
+
+**権限:**
+- Dashboardのオーナーのみアクセス可能
+- オーナー以外は403 Forbiddenを返す
 
 **Response (200):**
 ```json
@@ -1620,34 +1622,37 @@ Chatbot質問
       "log_id": "log_abc123",
       "event_type": "DASHBOARD_SHARE_ADDED",
       "timestamp": "2024-01-15T10:00:00Z",
-      "user": {
-        "user_id": "user_abc123",
-        "name": "山田太郎"
-      },
+      "user_id": "user_abc123",
       "target_type": "Dashboard",
       "target_id": "dash_abc123",
       "details": {
         "shared_to_type": "user",
         "shared_to_id": "user_def456",
         "permission": "viewer"
-      }
+      },
+      "request_id": "req_xyz789"
     }
   ],
-  "pagination": { ... }
+  "pagination": {
+    "total": 10,
+    "limit": 100
+  }
 }
 ```
 
+**Errors:**
+- `400 BAD_REQUEST`: dashboard_idが指定されていない
+- `403 FORBIDDEN`: Dashboardオーナーではない
+- `404 NOT_FOUND`: Dashboardが存在しない
+
 **イベント種別:**
-- `USER_LOGIN`
-- `USER_LOGOUT`
-- `DATASET_CREATED`
-- `DATASET_IMPORTED`
-- `DATASET_DELETED`
-- `TRANSFORM_EXECUTED`
-- `TRANSFORM_FAILED`
-- `CARD_EXECUTION_FAILED`
-- `DASHBOARD_CREATED`
-- `DASHBOARD_DELETED`
-- `DASHBOARD_SHARE_ADDED`
-- `DASHBOARD_SHARE_REMOVED`
-- `DASHBOARD_SHARE_UPDATED`
+- `USER_LOGIN` - ログイン成功
+- `USER_LOGOUT` - ログアウト
+- `USER_LOGIN_FAILED` - ログイン失敗
+- `DATASET_IMPORTED` - Dataset取り込み（Local/S3）
+- `DATASET_REIMPORTED` - Dataset再取り込み
+- `TRANSFORM_FAILED` - Transform実行失敗
+- `CARD_EXECUTION_FAILED` - カード実行失敗
+- `DASHBOARD_SHARE_ADDED` - Dashboard共有追加
+- `DASHBOARD_SHARE_UPDATED` - Dashboard共有更新
+- `DASHBOARD_SHARE_REMOVED` - Dashboard共有削除

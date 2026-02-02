@@ -104,6 +104,10 @@ app.include_router(filter_views.router, prefix="/api")
 from app.api.routes import transforms
 app.include_router(transforms.router, prefix="/api")
 
+# Audit Logs API
+from app.api.routes import audit_logs
+app.include_router(audit_logs.router, prefix="/api")
+
 # Test setup API (テスト環境のみ)
 if settings.allow_test_setup:
     from app.api.routes import test_setup

@@ -1,9 +1,9 @@
 """Datasets APIルート"""
 from typing import Optional
-from fastapi import APIRouter, Depends, status, Query, Path, UploadFile, File, Form
+from fastapi import APIRouter, Depends, status, Query, Path, UploadFile, File, Form, Request
 from pydantic import BaseModel
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_request_id
 from app.core.exceptions import NotFoundError, ForbiddenError, BadRequestError
 from app.services.dataset_service import (
     create_dataset_from_local_csv,
@@ -16,6 +16,7 @@ from app.services.dataset_service import (
     get_dataset_preview,
 )
 from app.models.dataset import Dataset, DatasetUpdate, DatasetPreview
+from app.services.audit_log_service import create_audit_log
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
@@ -105,6 +106,7 @@ async def create_dataset_endpoint(
     delimiter: str = Form(","),
     has_header: bool = Form(True),
     current_user: dict = Depends(get_current_user),
+    http_request: Request = ...,
 ):
     """Dataset作成（Local CSV取り込み）"""
     user_id = current_user["user_id"]
@@ -123,6 +125,21 @@ async def create_dataset_endpoint(
         )
     except ValueError as e:
         raise BadRequestError(str(e))
+    
+    # 監査ログ記録
+    await create_audit_log(
+        event_type="DATASET_IMPORTED",
+        user_id=user_id,
+        target_type="Dataset",
+        target_id=dataset.dataset_id,
+        details={
+            "name": name,
+            "source_type": "local_csv",
+            "row_count": dataset.row_count,
+            "column_count": dataset.column_count,
+        },
+        request_id=get_request_id(http_request),
+    )
     
     return {
         "data": DatasetResponse(
@@ -148,6 +165,7 @@ async def create_dataset_endpoint(
 async def s3_import_dataset_endpoint(
     request: S3ImportRequest,
     current_user: dict = Depends(get_current_user),
+    http_request: Request = ...,
 ):
     """S3 CSV取り込み"""
     user_id = current_user["user_id"]
@@ -164,6 +182,23 @@ async def s3_import_dataset_endpoint(
         )
     except ValueError as e:
         raise BadRequestError(str(e))
+    
+    # 監査ログ記録
+    await create_audit_log(
+        event_type="DATASET_IMPORTED",
+        user_id=user_id,
+        target_type="Dataset",
+        target_id=dataset.dataset_id,
+        details={
+            "name": request.name,
+            "source_type": "s3_csv",
+            "bucket": request.bucket,
+            "key": request.key,
+            "row_count": dataset.row_count,
+            "column_count": dataset.column_count,
+        },
+        request_id=get_request_id(http_request),
+    )
     
     return {
         "data": DatasetResponse(
@@ -274,6 +309,7 @@ async def delete_dataset_endpoint(
 async def reimport_dataset_endpoint(
     dataset_id: str = Path(..., description="Dataset ID"),
     current_user: dict = Depends(get_current_user),
+    http_request: Request = ...,
 ):
     """Dataset再取り込み"""
     dataset = await get_dataset(dataset_id)
@@ -281,13 +317,29 @@ async def reimport_dataset_endpoint(
         raise NotFoundError("Dataset", dataset_id)
     
     # 所有者チェック
-    if dataset.owner_id != current_user["user_id"]:
+    user_id = current_user["user_id"]
+    if dataset.owner_id != user_id:
         raise ForbiddenError("You don't have permission to reimport this dataset")
     
     try:
-        dataset = await reimport_dataset(dataset_id, current_user["user_id"])
+        dataset = await reimport_dataset(dataset_id, user_id)
     except ValueError as e:
         raise BadRequestError(str(e))
+    
+    # 監査ログ記録
+    await create_audit_log(
+        event_type="DATASET_REIMPORTED",
+        user_id=user_id,
+        target_type="Dataset",
+        target_id=dataset_id,
+        details={
+            "name": dataset.name,
+            "row_count": dataset.row_count,
+            "column_count": dataset.column_count,
+            "schema_changed": dataset.source_config.get("schema_changed", False),
+        },
+        request_id=get_request_id(http_request),
+    )
     
     return {
         "data": DatasetResponse(

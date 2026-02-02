@@ -37,7 +37,7 @@ This project contains a FastAPI backend, a React frontend, and a Python executor
 
 5. **Initialize DynamoDB tables** (first time only)
    ```bash
-   docker compose run --rm api python scripts/init_dynamodb.py
+   docker compose run --rm api python scripts/init_tables.py
    ```
 
 6. **Initialize S3 buckets** (first time only)

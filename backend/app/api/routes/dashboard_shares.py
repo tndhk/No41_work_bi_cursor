@@ -1,8 +1,8 @@
 """Dashboard Shares APIルート"""
-from fastapi import APIRouter, Depends, status, Path
+from fastapi import APIRouter, Depends, status, Path, Request
 from pydantic import BaseModel
 
-from app.api.deps import get_current_user
+from app.api.deps import get_current_user, get_request_id
 from app.core.exceptions import NotFoundError, ForbiddenError
 from app.services.dashboard_share_service import (
     create_share,
@@ -13,6 +13,7 @@ from app.services.dashboard_share_service import (
     check_dashboard_permission,
 )
 from app.services.dashboard_service import get_dashboard
+from app.services.audit_log_service import create_audit_log
 
 router = APIRouter(prefix="/dashboards/{dashboard_id}/shares", tags=["dashboard-shares"])
 
@@ -75,6 +76,7 @@ async def create_share_endpoint(
     dashboard_id: str = Path(..., description="Dashboard ID"),
     request: CreateShareRequest = ...,
     current_user: dict = Depends(get_current_user),
+    http_request: Request = ...,
 ):
     """共有追加"""
     dashboard = await get_dashboard(dashboard_id)
@@ -92,6 +94,21 @@ async def create_share_endpoint(
         shared_to_id=request.shared_to_id,
         permission=request.permission,
         shared_by=user_id,
+    )
+    
+    # 監査ログ記録
+    await create_audit_log(
+        event_type="DASHBOARD_SHARE_ADDED",
+        user_id=user_id,
+        target_type="Dashboard",
+        target_id=dashboard_id,
+        details={
+            "shared_to_type": request.shared_to_type,
+            "shared_to_id": request.shared_to_id,
+            "permission": request.permission,
+            "share_id": share.share_id,
+        },
+        request_id=get_request_id(http_request),
     )
     
     return {
@@ -113,6 +130,7 @@ async def update_share_endpoint(
     share_id: str = Path(..., description="Share ID"),
     request: UpdateShareRequest = ...,
     current_user: dict = Depends(get_current_user),
+    http_request: Request = ...,
 ):
     """共有更新"""
     dashboard = await get_dashboard(dashboard_id)
@@ -124,7 +142,24 @@ async def update_share_endpoint(
     if dashboard.owner_id != user_id:
         raise ForbiddenError("You don't have permission to update shares")
     
+    old_share = await get_share(share_id)
     share = await update_share(share_id, request.permission)
+    
+    # 監査ログ記録
+    await create_audit_log(
+        event_type="DASHBOARD_SHARE_UPDATED",
+        user_id=user_id,
+        target_type="Dashboard",
+        target_id=dashboard_id,
+        details={
+            "share_id": share_id,
+            "old_permission": old_share.permission if old_share else None,
+            "new_permission": request.permission,
+            "shared_to_type": share.shared_to_type,
+            "shared_to_id": share.shared_to_id,
+        },
+        request_id=get_request_id(http_request),
+    )
     
     return {
         "data": ShareResponse(
@@ -144,6 +179,7 @@ async def delete_share_endpoint(
     dashboard_id: str = Path(..., description="Dashboard ID"),
     share_id: str = Path(..., description="Share ID"),
     current_user: dict = Depends(get_current_user),
+    http_request: Request = ...,
 ):
     """共有削除"""
     dashboard = await get_dashboard(dashboard_id)
@@ -155,4 +191,22 @@ async def delete_share_endpoint(
     if dashboard.owner_id != user_id:
         raise ForbiddenError("You don't have permission to delete shares")
     
+    # 削除前に共有情報を取得
+    share = await get_share(share_id)
     await delete_share(share_id)
+    
+    # 監査ログ記録
+    if share:
+        await create_audit_log(
+            event_type="DASHBOARD_SHARE_REMOVED",
+            user_id=user_id,
+            target_type="Dashboard",
+            target_id=dashboard_id,
+            details={
+                "share_id": share_id,
+                "shared_to_type": share.shared_to_type,
+                "shared_to_id": share.shared_to_id,
+                "permission": share.permission,
+            },
+            request_id=get_request_id(http_request),
+        )
