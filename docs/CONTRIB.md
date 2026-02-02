@@ -9,8 +9,10 @@ This project contains a FastAPI backend, a React frontend, and a Python executor
 ### Prerequisites
 
 - Docker 24.x and docker-compose 2.x
-- Node.js 20.x (for frontend development)
-- Python 3.11 (for backend development)
+- Node.js 20.x (for frontend local development only)
+- Python 3.11 (for backend local development only)
+
+**推奨開発環境**: このプロジェクトでは**Docker Composeを使用した開発・テストを標準**としています。ローカルでのPython/Node.js実行も可能ですが、環境構築が必要です。Docker Composeを使用することで依存サービス（DynamoDB Local、MinIO等）が自動的に起動し、環境差異によるトラブルを回避できます。
 
 ### Initial Setup
 
@@ -69,29 +71,9 @@ npm run test         # Run tests
 
 ## Backend Scripts
 
-Backend uses Python with Poetry for dependency management. Common commands:
+Backend uses Python with Poetry for dependency management.
 
-**注: バックエンド開発では基本的にDocker Composeを使用することを推奨します。ローカル実行は環境構築が必要です。**
-
-```bash
-cd backend
-
-# Install dependencies
-poetry install
-
-# Run development server
-poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# Run tests（非推奨: Docker Composeの使用を推奨）
-poetry run pytest tests/ -v
-
-# Run tests with coverage（非推奨: Docker Composeの使用を推奨）
-poetry run pytest tests/ --cov=app --cov-report=html
-```
-
-### Backend Development
-
-Docker Composeを使った開発フロー:
+### Recommended: Docker Compose Development
 
 ```bash
 # サービス起動
@@ -102,6 +84,26 @@ docker compose run --rm api pytest tests/ -v
 
 # コンテナ内でシェルを開く
 docker compose run --rm api bash
+```
+
+### Local Development (Optional)
+
+ローカル環境で直接実行する場合（環境構築が必要）:
+
+```bash
+cd backend
+
+# Install dependencies
+poetry install
+
+# Run development server
+poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Run tests
+poetry run pytest tests/ -v
+
+# Run tests with coverage
+poetry run pytest tests/ --cov=app --cov-report=html
 ```
 
 ## Environment Variables
@@ -161,20 +163,15 @@ docker compose run --rm api pytest tests/ --cov=app --cov-report=term-missing
 docker compose run --rm api pytest tests/ -k "test_user" -v
 ```
 
-**ローカルでの実行（非推奨）**
+**ローカルでの実行（オプション）**
 
-ローカル環境で直接実行する場合は、以下の前提条件を満たす必要があります:
-- Python 3.11および全依存パッケージのインストール
-- DynamoDB Local、MinIOなどの依存サービスが起動済み
-- 環境変数の適切な設定
+ローカル環境での実行も可能ですが、依存サービス（DynamoDB Local、MinIO）の起動と環境変数の設定が必要です:
 
 ```bash
 cd backend
-poetry install  # 依存パッケージのインストール
+poetry install
 poetry run pytest tests/ -v
 ```
-
-注: ローカル実行では環境構築の手間が大きく、環境差異によるトラブルが発生しやすいため、Docker Composeの使用を強く推奨します。
 
 ### Frontend Tests
 
@@ -283,10 +280,8 @@ poetry run mypy app/
 
 3. **Run tests and linting**
    
-   **重要: テストは必ずDocker Composeで実行してください**
-   
    ```bash
-   # Backend（Docker推奨）
+   # Backend（Docker Compose使用）
    docker compose run --rm api pytest tests/ -v
    
    # Frontend
