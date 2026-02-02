@@ -109,3 +109,19 @@ Transform Definition → Execute → Executor → Read Input → Process → Wri
 - **Code Execution:** Sandboxed containers with network isolation
 - **HTML Rendering:** iframe with CSP
 - **Data Access:** Owner-based + Dashboard sharing
+
+## Testing Strategy
+
+### Unit Tests
+- **Backend:** pytest with moto (DynamoDB/S3 mocking)
+- **Frontend:** vitest with @testing-library/react
+- **Coverage Target:** 80%
+
+### E2E Tests
+- **Tool:** Playwright
+- **Coverage:** Critical user paths
+- **Test Data:** Backend test setup endpoint (`ALLOW_TEST_SETUP=true`)
+- **Strategy:** 
+  - API-driven test fixture creation
+  - Network stubbing for deterministic card previews
+  - Reusable dev server for faster test runs

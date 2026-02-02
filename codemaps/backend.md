@@ -19,7 +19,8 @@ backend/app/
 │       ├── dashboard_shares.py  # Dashboard sharing
 │       ├── filter_views.py      # Filter view management
 │       ├── transforms.py        # Transform CRUD + execution
-│       └── chatbot.py          # Chatbot API
+│       ├── chatbot.py          # Chatbot API
+│       └── test_setup.py       # Test-only setup endpoint (guarded)
 ├── core/
 │   ├── config.py          # Settings (Pydantic Settings)
 │   ├── security.py        # JWT, password hashing
@@ -117,6 +118,10 @@ backend/app/
 
 ### Chatbot (`/api/dashboards/{id}/chat`)
 - `POST /chat` - Chatbot query
+
+### Test Setup (`/api/test` - Test Only)
+- `POST /setup` - Create test data (user, dataset, card, dashboard)
+- **Note:** Only enabled when `ALLOW_TEST_SETUP=true`
 
 ## Service Layer
 

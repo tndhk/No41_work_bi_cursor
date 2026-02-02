@@ -1,80 +1,100 @@
 # Codemap Diff Report
 
-**Generated:** 2026-02-02
-**Previous Version:** None (Initial generation)
+**Generated:** 2026-02-02 18:45 JST
+**Previous Version:** 2026-02-02
+**Current Version:** 2026-02-02 (updated)
 
 ## Summary
 
-This is the initial generation of codemaps. All files are new.
+Total codemaps: 4
+Updated codemaps: 3
+Unchanged codemaps: 1
+Change percentage: **16.5%** (138 lines changed out of 836 total)
 
-## Files Created
+## Change Breakdown
 
-### codemaps/architecture.md
-- **Status:** NEW
-- **Size:** ~150 lines
-- **Content:** System architecture overview, component relationships, data flows, dependencies
+### Modified Files
 
-### codemaps/backend.md
-- **Status:** NEW
-- **Size:** ~200 lines
-- **Content:** Backend directory structure, API routes, service layer, database schema
+#### codemaps/architecture.md
+- **Lines added:** 16
+- **Lines removed:** 0
+- **Net change:** +16 lines
+- **Changes:**
+  - Added "Testing Strategy" section
+  - Documented unit test approach (pytest, vitest)
+  - Added E2E testing strategy with Playwright
+  - Documented test data setup approach
+  - Coverage targets specified (80%)
 
-### codemaps/frontend.md
-- **Status:** NEW
-- **Size:** ~200 lines
-- **Content:** Frontend directory structure, component hierarchy, routing, state management
+#### codemaps/backend.md
+- **Lines added:** 6
+- **Lines removed:** 1
+- **Net change:** +5 lines
+- **Changes:**
+  - Added `test_setup.py` route to directory structure
+  - Documented `/api/test` endpoint
+  - Added note about `ALLOW_TEST_SETUP` environment guard
 
-### codemaps/data.md
-- **Status:** NEW
-- **Size:** ~250 lines
-- **Content:** Data models, entity relationships, DynamoDB schema, S3 storage schema
+#### codemaps/frontend.md
+- **Lines added:** 75
+- **Lines removed:** 40
+- **Net change:** +35 lines
+- **Changes:**
+  - Restructured directory tree to show `e2e/` folder
+  - Added `vite-env.d.ts` to structure
+  - Added `__tests__/` directories for all component groups
+  - Added E2E test files (`critical-path.spec.ts`, `utils.ts`)
+  - Added "Testing" section with Unit and E2E subsections
+  - Documented E2E test flow (6-step process)
+  - Updated dependencies to include `@playwright/test`
+  - Expanded testing documentation significantly
 
-## Change Percentage
+### Unchanged Files
 
-**Overall Change:** 100% (Initial generation)
+#### codemaps/data.md
+- No changes (data models remain stable)
 
-Since this is the first version, all content is new. Future updates will show percentage changes.
+## Key Updates
 
-## Key Sections Documented
+### New Features Documented
+1. **E2E Testing Infrastructure**
+   - Playwright configuration and setup
+   - Critical path test coverage (login → dashboard → filter)
+   - Test data setup via backend API endpoint
+   - Network stubbing for deterministic tests
 
-### Architecture
-- System architecture diagram
-- Component overview (Frontend, Backend, Executor)
-- Data flow diagrams
-- Security architecture
+2. **Testing Strategy**
+   - Unit test coverage (80% target)
+   - E2E test approach
+   - Test fixture creation patterns
+   - Mock/stub strategies
 
-### Backend
-- Directory structure
-- All API routes (10 route modules)
-- Service layer organization
-- Database tables (8 DynamoDB tables)
-- External dependencies
+3. **Test-Only Backend Endpoint**
+   - `/api/test/setup` for E2E test data creation
+   - Environment-guarded (requires `ALLOW_TEST_SETUP=true`)
+   - Creates complete test fixtures (user, dataset, card, dashboard)
 
-### Frontend
-- Component hierarchy
-- Routing structure
-- State management (TanStack Query + Zustand)
-- API integration patterns
-- Build configuration
+### Architecture Impact
+- **Low impact** - Changes are additive (testing infrastructure)
+- No breaking changes to existing architecture
+- No changes to data models or schemas
+- Service layer unchanged (test endpoint is isolated)
 
-### Data Models
-- Entity relationships
-- Core Pydantic models (8 models)
-- DynamoDB table schemas
-- S3 storage structure
-- Data type definitions
-- Data flow processes
+## Recommendations
 
-## Next Steps
+1. ✅ Changes are under 30% threshold - no approval needed
+2. ✅ All updates are backward compatible
+3. ✅ Documentation reflects current implementation state
+4. 📝 Consider adding E2E test results/reports to future updates
+5. 📝 May want to document test coverage metrics once baseline established
 
-1. Review codemaps for accuracy
-2. Update when significant architectural changes occur
-3. Regenerate when >30% changes detected
-4. Maintain freshness timestamps
+## Files Updated
+- [x] codemaps/architecture.md
+- [x] codemaps/backend.md
+- [x] codemaps/frontend.md
+- [ ] codemaps/data.md (no changes needed)
 
-## Notes
+---
 
-- All codemaps include freshness timestamps
-- Focus on high-level structure, not implementation details
-- Token-lean format for efficient documentation
-- Dependency graphs included where relevant
+**Status:** ✅ Codemaps successfully updated
+**Approval Required:** No (16.5% < 30% threshold)

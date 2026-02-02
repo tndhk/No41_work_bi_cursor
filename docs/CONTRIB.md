@@ -55,6 +55,7 @@ All scripts are run from the `frontend/` directory:
 | `preview` | `vite preview` | Preview production build locally |
 | `test` | `vitest` | Run frontend unit tests |
 | `test:coverage` | `vitest --coverage` | Run tests with coverage report |
+| `test:e2e` | `playwright test` | Run end-to-end tests with Playwright |
 
 ### Frontend Development
 
@@ -158,7 +159,7 @@ poetry run pytest tests/ -v
 
 ### Frontend Tests
 
-Run frontend tests:
+Run frontend unit tests:
 
 ```bash
 cd frontend
@@ -173,11 +174,50 @@ npm run test:coverage
 npm run test -- --watch
 ```
 
+### E2E Tests
+
+Run end-to-end tests with Playwright:
+
+```bash
+cd frontend
+
+# Install Playwright browsers (first time only)
+npx playwright install
+
+# Run E2E tests
+npm run test:e2e
+
+# Run in UI mode for debugging
+npx playwright test --ui
+
+# Run specific test file
+npx playwright test e2e/critical-path.spec.ts
+```
+
+**Prerequisites for E2E tests:**
+- Backend and frontend services must be running
+- Test setup endpoint must be enabled (set `ALLOW_TEST_SETUP=true` in backend)
+- Playwright browsers installed (`npx playwright install`)
+
+**Local E2E test setup:**
+
+```bash
+# Start all services
+docker compose up -d
+
+# Wait for services to be ready
+curl http://localhost:8000/health
+
+# Run E2E tests
+cd frontend && npm run test:e2e
+```
+
 ### Test Coverage Requirements
 
 - Backend: Target 80% code coverage
 - Frontend: Target 80% code coverage
 - Critical paths (authentication, data access) should have 100% coverage
+- E2E tests should cover critical user flows (login, dashboard viewing, filtering)
 
 ## Code Quality
 
