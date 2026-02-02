@@ -28,14 +28,15 @@ def mock_s3_client():
 @pytest.fixture
 def mock_vertex_ai():
     """Vertex AIのモック"""
-    with patch("app.services.chatbot_service.vertexai") as mock_vertexai:
-        mock_model = MagicMock()
-        mock_response = MagicMock()
-        mock_response.text = "これはテスト回答です。"
-        mock_model.generate_content.return_value = mock_response
-        
-        mock_generative_model = MagicMock(return_value=mock_model)
-        
+    mock_vertexai = MagicMock()
+    mock_model = MagicMock()
+    mock_response = MagicMock()
+    mock_response.text = "これはテスト回答です。"
+    mock_model.generate_content.return_value = mock_response
+    
+    mock_generative_model = MagicMock(return_value=mock_model)
+    
+    with patch("app.services.chatbot_service.vertexai", mock_vertexai):
         with patch("app.services.chatbot_service.GenerativeModel", mock_generative_model):
             yield {
                 "vertexai": mock_vertexai,

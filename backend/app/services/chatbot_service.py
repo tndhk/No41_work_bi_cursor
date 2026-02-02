@@ -6,7 +6,7 @@ import io
 import pandas as pd
 import pyarrow.parquet as pq
 import vertexai
-from vertexai.generative_models import GenerativeModel
+from vertexai.preview.generative_models import GenerativeModel
 
 from app.db.dynamodb import get_dynamodb_client, get_table_name
 from app.db.s3 import get_s3_client, get_bucket_name
