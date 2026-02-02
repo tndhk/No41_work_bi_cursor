@@ -1,7 +1,7 @@
 """Datasetモデル"""
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class DatasetBase(BaseModel):
@@ -38,8 +38,7 @@ class Dataset(DatasetBase):
     last_import_at: Optional[datetime] = None
     last_import_by: Optional[str] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DatasetPreview(BaseModel):

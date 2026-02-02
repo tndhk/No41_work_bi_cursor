@@ -1,7 +1,7 @@
 """Transformモデル - TDD実装中"""
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class TransformBase(BaseModel):
@@ -36,8 +36,7 @@ class Transform(BaseModel):
     updated_at: datetime
     last_executed_at: Optional[datetime] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TransformExecution(BaseModel):
@@ -49,5 +48,4 @@ class TransformExecution(BaseModel):
     error_message: Optional[str] = None
     output_dataset_id: Optional[str] = None
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
