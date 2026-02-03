@@ -26,7 +26,7 @@ class TestSetupResponse(BaseModel):
 @router.post("/setup", response_model=TestSetupResponse)
 async def setup_test_data():
     """テスト用データセットアップ（テスト環境のみ）"""
-    if not settings.allow_test_setup:
+    if not settings.allow_test_setup or settings.env == "prod":
         raise HTTPException(
             status_code=403,
             detail="Test setup endpoint is disabled. Set ALLOW_TEST_SETUP=true to enable."

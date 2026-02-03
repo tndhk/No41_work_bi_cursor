@@ -5,7 +5,7 @@ import pyarrow.parquet as pq
 from typing import Dict, Any, Optional
 import traceback
 
-from app.sandbox import sandbox_context, validate_code, SandboxError
+from app.sandbox import sandbox_context, validate_code, SandboxError, build_safe_builtins
 from app.db import get_s3_client, get_bucket_name
 from app.resource_limiter import ResourceLimiter, TimeoutError
 from app.config import settings
@@ -61,6 +61,7 @@ async def execute_card(
             with sandbox_context():
                 # グローバル名前空間を準備
                 namespace = {
+                    "__builtins__": build_safe_builtins(),
                     "pd": pd,
                     "pandas": pd,
                     "dataset": filtered_df,
@@ -131,6 +132,7 @@ async def execute_transform(
             with sandbox_context():
                 # グローバル名前空間を準備
                 namespace = {
+                    "__builtins__": build_safe_builtins(),
                     "pd": pd,
                     "pandas": pd,
                     "inputs": inputs,

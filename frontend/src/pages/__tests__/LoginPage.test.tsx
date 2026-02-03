@@ -31,15 +31,15 @@ import { authApi } from '../../lib/api'
 
 describe('LoginPage', () => {
   const mockNavigate = vi.fn()
-  const mockSetToken = vi.fn()
   const mockSetUser = vi.fn()
+  const mockSetAuthChecked = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(useNavigate).mockReturnValue(mockNavigate)
     vi.mocked(useAuthStore).mockReturnValue({
-      setToken: mockSetToken,
       setUser: mockSetUser,
+      setAuthChecked: mockSetAuthChecked,
     } as any)
   })
 
@@ -90,8 +90,8 @@ describe('LoginPage', () => {
         email: 'test@example.com',
         password: 'password123',
       })
-      expect(mockSetToken).toHaveBeenCalledWith('token-123')
       expect(mockSetUser).toHaveBeenCalledWith(mockLoginResponse.user)
+      expect(mockSetAuthChecked).toHaveBeenCalledWith(true)
       expect(mockNavigate).toHaveBeenCalledWith('/')
     })
   })

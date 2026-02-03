@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440
     password_min_length: int = 8
+    jwt_issuer: str = "bi-app"
+    jwt_audience: str = "bi-users"
+    auth_cookie_name: str = "access_token"
+    csrf_cookie_name: str = "csrf_token"
+    csrf_header_name: str = "X-CSRF-Token"
+    auth_cookie_samesite: str = "lax"
+    auth_cookie_secure: bool = False
+    auth_cookie_max_age: int = 60 * 60 * 24
     
     # DynamoDB設定
     dynamodb_endpoint: str | None = None

@@ -6,8 +6,12 @@ interface ProtectedRouteProps {
   children: ReactNode
 }
 
-export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { isAuthenticated } = useAuthStore()
+export default function ProtectedRoute({ children }: ProtectedRouteProps): JSX.Element | null {
+  const { isAuthenticated, authChecked } = useAuthStore()
+
+  if (!authChecked) {
+    return null
+  }
 
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />

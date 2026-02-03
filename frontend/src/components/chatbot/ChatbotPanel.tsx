@@ -1,5 +1,11 @@
-import { useState, useRef, useEffect } from 'react'
-import { useAuthStore } from '../../stores/auth'
+import { useEffect, useRef, useState } from 'react'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+function getCookieValue(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  return match ? decodeURIComponent(match[1]) : null
+}
 
 interface Message {
   id: string
@@ -14,15 +20,23 @@ interface ChatbotPanelProps {
   onClose: () => void
 }
 
-export default function ChatbotPanel({ dashboardId, isOpen, onClose }: ChatbotPanelProps) {
+export default function ChatbotPanel({
+  dashboardId,
+  isOpen,
+  onClose,
+}: ChatbotPanelProps): JSX.Element | null {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const token = useAuthStore((state) => state.token)
+  const isSendDisabled = !input.trim() || isLoading
 
-  const scrollToBottom = () => {
+  function appendMessage(message: Message): void {
+    setMessages((prev) => [...prev, message])
+  }
+
+  function scrollToBottom(): void {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
@@ -30,27 +44,30 @@ export default function ChatbotPanel({ dashboardId, isOpen, onClose }: ChatbotPa
     scrollToBottom()
   }, [messages])
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return
+  async function sendMessage(): Promise<void> {
+    const trimmedInput = input.trim()
+    if (!trimmedInput || isLoading) return
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: input.trim(),
+      content: trimmedInput,
       timestamp: new Date(),
     }
 
-    setMessages((prev) => [...prev, userMessage])
+    appendMessage(userMessage)
     setInput('')
     setIsLoading(true)
     setError(null)
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/dashboards/${dashboardId}/chat`, {
+      const csrfToken = getCookieValue('csrf_token')
+      const response = await fetch(`${API_URL}/api/v1/dashboards/${dashboardId}/chat`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         },
         body: JSON.stringify({ message: userMessage.content }),
       })
@@ -71,24 +88,24 @@ export default function ChatbotPanel({ dashboardId, isOpen, onClose }: ChatbotPa
         timestamp: new Date(),
       }
 
-      setMessages((prev) => [...prev, assistantMessage])
+      appendMessage(assistantMessage)
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'エラーが発生しました'
       setError(errorMsg)
-      
+
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: 'assistant',
         content: errorMsg,
         timestamp: new Date(),
       }
-      setMessages((prev) => [...prev, errorMessage])
+      appendMessage(errorMessage)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  function handleKeyPress(e: React.KeyboardEvent): void {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       sendMessage()
@@ -99,7 +116,6 @@ export default function ChatbotPanel({ dashboardId, isOpen, onClose }: ChatbotPa
 
   return (
     <div className="fixed inset-y-0 right-0 w-96 bg-white shadow-2xl border-l border-gray-200 flex flex-col z-50">
-      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-indigo-600 text-white">
         <div className="flex items-center gap-2">
           <svg
@@ -138,7 +154,6 @@ export default function ChatbotPanel({ dashboardId, isOpen, onClose }: ChatbotPa
         </button>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-center text-gray-500 mt-8">
@@ -201,14 +216,12 @@ export default function ChatbotPanel({ dashboardId, isOpen, onClose }: ChatbotPa
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Error Display */}
       {error && (
         <div className="px-4 py-2 bg-red-50 border-t border-red-200">
           <p className="text-sm text-red-600">{error}</p>
         </div>
       )}
 
-      {/* Input */}
       <div className="p-4 border-t border-gray-200">
         <div className="flex gap-2">
           <textarea
@@ -222,7 +235,7 @@ export default function ChatbotPanel({ dashboardId, isOpen, onClose }: ChatbotPa
           />
           <button
             onClick={sendMessage}
-            disabled={!input.trim() || isLoading}
+            disabled={isSendDisabled}
             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             aria-label="送信"
           >

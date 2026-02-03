@@ -1,7 +1,5 @@
 """サンドボックス実装"""
-import sys
-import importlib
-import importlib.util
+import ast
 import builtins
 from typing import List, Set
 from contextlib import contextmanager
@@ -10,7 +8,6 @@ from contextlib import contextmanager
 # 許可ライブラリのホワイトリスト
 ALLOWED_MODULES: Set[str] = {
     # 標準ライブラリ
-    "builtins",
     "codecs",
     "collections",
     "datetime",
@@ -61,20 +58,12 @@ class ImportHook:
     
     def _import_hook(self, name, globals=None, locals=None, fromlist=(), level=0):
         """importフック実装"""
-        # 相対インポート（level > 0）の場合は、globalsから親モジュールを確認
-        if level > 0 and globals and '__name__' in globals:
-            # 相対インポートは、親モジュールが許可されている場合は許可
-            parent_module = globals['__name__'].rsplit('.', level)[0] if '.' in globals['__name__'] else globals['__name__']
-            base_module = parent_module.split('.')[0]
-            if base_module in self.allowed_modules or base_module.startswith('_'):
-                return self.original_import(name, globals, locals, fromlist, level)
+        # 相対インポートは許可しない
+        if level > 0:
+            raise SandboxError("Relative imports are not allowed")
         
         # モジュール名をチェック
         module_name = name.split('.')[0]
-        
-        # 内部モジュール（_で始まる）は許可
-        if module_name.startswith('_'):
-            return self.original_import(name, globals, locals, fromlist, level)
         
         # ホワイトリストチェック
         if module_name not in self.allowed_modules:
@@ -102,24 +91,87 @@ def sandbox_context():
         yield
 
 
+def build_safe_builtins() -> dict:
+    """安全な組み込み関数のホワイトリスト"""
+    allowed_names = {
+        "abs",
+        "all",
+        "any",
+        "bool",
+        "dict",
+        "enumerate",
+        "filter",
+        "float",
+        "int",
+        "len",
+        "list",
+        "map",
+        "max",
+        "min",
+        "print",
+        "range",
+        "round",
+        "set",
+        "sorted",
+        "str",
+        "sum",
+        "tuple",
+        "zip",
+    }
+    safe = {}
+    for name in allowed_names:
+        safe[name] = getattr(builtins, name)
+    return safe
+
+
 def validate_code(code: str) -> List[str]:
     """コードを検証（危険な操作をチェック）"""
     errors = []
-    
-    # 危険なキーワードをチェック
-    dangerous_keywords = [
+    try:
+        tree = ast.parse(code)
+    except SyntaxError as e:
+        return [f"Syntax error: {e}"]
+
+    forbidden_names = {
         "eval",
         "exec",
         "__import__",
-        "open(",
-        "file(",
-        "input(",
-        "raw_input(",
-        "compile(",
-    ]
-    
-    for keyword in dangerous_keywords:
-        if keyword in code:
-            errors.append(f"Dangerous keyword '{keyword}' is not allowed")
-    
+        "open",
+        "compile",
+        "input",
+        "globals",
+        "locals",
+        "vars",
+        "getattr",
+        "setattr",
+        "delattr",
+        "breakpoint",
+    }
+
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            if isinstance(node, ast.ImportFrom):
+                if node.level and node.level > 0:
+                    errors.append("Relative imports are not allowed")
+                    continue
+                module_name = node.module.split('.')[0] if node.module else ""
+                if module_name not in ALLOWED_MODULES:
+                    errors.append(f"Import of '{node.module}' is not allowed")
+            else:
+                for alias in node.names:
+                    module_name = alias.name.split('.')[0]
+                    if module_name not in ALLOWED_MODULES:
+                        errors.append(f"Import of '{alias.name}' is not allowed")
+        elif isinstance(node, ast.Attribute):
+            if node.attr.startswith("__") and node.attr.endswith("__"):
+                errors.append("Access to dunder attributes is not allowed")
+        elif isinstance(node, ast.Name):
+            if node.id in forbidden_names:
+                errors.append(f"Use of '{node.id}' is not allowed")
+            if node.id.startswith("__") and node.id.endswith("__"):
+                errors.append("Use of dunder names is not allowed")
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id in forbidden_names:
+                errors.append(f"Call to '{node.func.id}' is not allowed")
+
     return errors

@@ -1,5 +1,5 @@
 """認証APIルート"""
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, EmailStr
 
 from app.api.deps import get_current_user, get_request_id
@@ -8,6 +8,7 @@ from app.core.security import verify_password, create_access_token
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedError, NotFoundError
 from app.services.audit_log_service import create_audit_log
+import uuid
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -30,8 +31,52 @@ class UserResponse(BaseModel):
     name: str
 
 
+def _set_auth_cookies(response: Response, access_token: str, csrf_token: str) -> None:
+    secure = settings.auth_cookie_secure or settings.env != "local"
+    response.set_cookie(
+        key=settings.auth_cookie_name,
+        value=access_token,
+        httponly=True,
+        secure=secure,
+        samesite=settings.auth_cookie_samesite,
+        max_age=settings.auth_cookie_max_age,
+        path="/",
+    )
+    response.set_cookie(
+        key=settings.csrf_cookie_name,
+        value=csrf_token,
+        httponly=False,
+        secure=secure,
+        samesite=settings.auth_cookie_samesite,
+        max_age=settings.auth_cookie_max_age,
+        path="/",
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    secure = settings.auth_cookie_secure or settings.env != "local"
+    response.set_cookie(
+        key=settings.auth_cookie_name,
+        value="",
+        httponly=True,
+        secure=secure,
+        samesite=settings.auth_cookie_samesite,
+        max_age=0,
+        path="/",
+    )
+    response.set_cookie(
+        key=settings.csrf_cookie_name,
+        value="",
+        httponly=False,
+        secure=secure,
+        samesite=settings.auth_cookie_samesite,
+        max_age=0,
+        path="/",
+    )
+
+
 @router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest, http_request: Request = ...):
+async def login(request: LoginRequest, http_request: Request = ..., response: Response = ...):
     """ログイン"""
     # ユーザを検索
     user = await get_user_by_email(request.email)
@@ -68,6 +113,8 @@ async def login(request: LoginRequest, http_request: Request = ...):
     
     # JWTトークンを発行
     access_token = create_access_token(user.user_id)
+    csrf_token = uuid.uuid4().hex
+    _set_auth_cookies(response, access_token, csrf_token)
     
     # ログイン成功ログ
     await create_audit_log(
@@ -94,7 +141,11 @@ async def login(request: LoginRequest, http_request: Request = ...):
 
 
 @router.post("/logout")
-async def logout(current_user: dict = Depends(get_current_user), http_request: Request = ...):
+async def logout(
+    current_user: dict = Depends(get_current_user),
+    http_request: Request = ...,
+    response: Response = ...,
+):
     """ログアウト"""
     # ログアウトログ
     user_id = current_user["user_id"]
@@ -107,6 +158,7 @@ async def logout(current_user: dict = Depends(get_current_user), http_request: R
         request_id=get_request_id(http_request),
     )
     
+    _clear_auth_cookies(response)
     return {"message": "ログアウトしました"}
 
 

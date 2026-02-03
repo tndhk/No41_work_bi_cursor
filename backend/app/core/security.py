@@ -34,18 +34,24 @@ def create_access_token(user_id: str) -> str:
         "exp": expire,
         "iat": datetime.utcnow(),
         "type": "access",
+        "iss": settings.jwt_issuer,
+        "aud": settings.jwt_audience,
     }
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
-def verify_token(token: str) -> dict:
+def verify_token(token: str, expected_type: str = "access") -> dict:
     """トークンを検証"""
     try:
         payload = jwt.decode(
             token,
             settings.jwt_secret_key,
             algorithms=[settings.jwt_algorithm],
+            issuer=settings.jwt_issuer,
+            audience=settings.jwt_audience,
         )
+        if payload.get("type") != expected_type:
+            raise ValueError("Invalid token type")
         return payload
     except JWTError as e:
         raise ValueError(f"Invalid token: {e}")

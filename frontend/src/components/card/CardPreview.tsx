@@ -1,13 +1,13 @@
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import DOMPurify from 'dompurify'
 import { cardsApi } from '../../lib/cards'
+import SandboxedHtmlFrame from '../common/SandboxedHtmlFrame'
 
 interface CardPreviewProps {
   card_id: string
 }
 
-export default function CardPreview({ card_id }: CardPreviewProps) {
+export default function CardPreview({ card_id }: CardPreviewProps): JSX.Element {
   const [filters, setFilters] = useState<Record<string, any>>({})
   const [previewHtml, setPreviewHtml] = useState<string | null>(null)
   const [filterInput, setFilterInput] = useState<string>('{}')
@@ -25,8 +25,20 @@ export default function CardPreview({ card_id }: CardPreviewProps) {
     },
   })
 
-  const handlePreview = () => {
+  function handlePreview(): void {
     previewMutation.mutate()
+  }
+
+  function handleFilterChange(event: ChangeEvent<HTMLTextAreaElement>): void {
+    const value = event.target.value
+    setFilterInput(value)
+    try {
+      const parsed = JSON.parse(value)
+      setFilters(parsed)
+      setJsonError(null)
+    } catch (err) {
+      setJsonError(err instanceof Error ? err.message : '無効なJSON形式です')
+    }
   }
 
   return (
@@ -40,17 +52,7 @@ export default function CardPreview({ card_id }: CardPreviewProps) {
         <textarea
           id="filter-input"
           value={filterInput}
-          onChange={(e) => {
-            const value = e.target.value
-            setFilterInput(value)
-            try {
-              const parsed = JSON.parse(value)
-              setFilters(parsed)
-              setJsonError(null)
-            } catch (err) {
-              setJsonError(err instanceof Error ? err.message : '無効なJSON形式です')
-            }
-          }}
+          onChange={handleFilterChange}
           className={`w-full px-3 py-2 border rounded-md font-mono text-sm ${
             jsonError ? 'border-red-500' : 'border-gray-300'
           }`}
@@ -83,73 +85,10 @@ export default function CardPreview({ card_id }: CardPreviewProps) {
 
       {previewHtml && (
         <div className="border border-gray-300 rounded-md p-4 bg-gray-50">
-          <div
-            dangerouslySetInnerHTML={{
-              __html: DOMPurify.sanitize(previewHtml, {
-                ALLOWED_TAGS: [
-                  'div',
-                  'span',
-                  'p',
-                  'h1',
-                  'h2',
-                  'h3',
-                  'h4',
-                  'h5',
-                  'h6',
-                  'ul',
-                  'ol',
-                  'li',
-                  'table',
-                  'thead',
-                  'tbody',
-                  'tr',
-                  'th',
-                  'td',
-                  'strong',
-                  'em',
-                  'b',
-                  'i',
-                  'u',
-                  'br',
-                  'hr',
-                  'img',
-                  'svg',
-                  'path',
-                  'g',
-                  'circle',
-                  'rect',
-                  'line',
-                  'polyline',
-                  'polygon',
-                ],
-                ALLOWED_ATTR: [
-                  'class',
-                  'id',
-                  'src',
-                  'alt',
-                  'width',
-                  'height',
-                  'viewBox',
-                  'd',
-                  'fill',
-                  'stroke',
-                  'stroke-width',
-                  'x',
-                  'y',
-                  'cx',
-                  'cy',
-                  'r',
-                  'x1',
-                  'y1',
-                  'x2',
-                  'y2',
-                  'points',
-                ],
-                FORBID_ATTR: ['style', 'onerror', 'onload'],
-                ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-              }),
-            }}
-            className="card-preview-content"
+          <SandboxedHtmlFrame
+            title={`card-preview-${card_id}`}
+            html={previewHtml}
+            height="320px"
           />
         </div>
       )}

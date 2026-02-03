@@ -1,31 +1,34 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../stores/auth'
 import { authApi } from '../lib/api'
 
-export default function LoginPage() {
+export default function LoginPage(): JSX.Element {
   const navigate = useNavigate()
-  const { setToken, setUser } = useAuthStore()
+  const { setUser, setAuthChecked } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault()
     setError(null)
     setLoading(true)
 
-    try {
-      const response = await authApi.login({ email, password })
-      setToken(response.access_token)
-      setUser(response.user)
-      navigate('/')
-    } catch (err: any) {
-      setError(err.message || 'ログインに失敗しました')
-    } finally {
-      setLoading(false)
-    }
+    authApi.login({ email, password })
+      .then((response) => {
+        setUser(response.user)
+        setAuthChecked(true)
+        navigate('/')
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'ログインに失敗しました'
+        setError(message)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
   }
 
   return (

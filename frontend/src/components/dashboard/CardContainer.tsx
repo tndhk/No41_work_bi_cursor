@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../lib/api'
+import SandboxedHtmlFrame from '../common/SandboxedHtmlFrame'
 
 interface CardContainerProps {
   cardId: string
   filters: Record<string, any>
 }
 
-export default function CardContainer({ cardId, filters }: CardContainerProps) {
+export default function CardContainer({ cardId, filters }: CardContainerProps): JSX.Element {
   const { data: card, isLoading } = useQuery({
     queryKey: ['card', cardId],
     queryFn: async () => {
@@ -50,9 +51,10 @@ export default function CardContainer({ cardId, filters }: CardContainerProps) {
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
       <h3 className="text-lg font-semibold mb-4">{card.name}</h3>
-      <div
-        className="card-content"
-        dangerouslySetInnerHTML={{ __html: preview.html }}
+      <SandboxedHtmlFrame
+        title={`card-${cardId}`}
+        html={preview.html}
+        height="320px"
       />
     </div>
   )

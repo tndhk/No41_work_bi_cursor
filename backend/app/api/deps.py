@@ -4,18 +4,23 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from app.core.security import verify_token
+from app.core.config import settings
 from app.core.exceptions import UnauthorizedError
 
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
     request: Request,
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    credentials: Annotated[Optional[HTTPAuthorizationCredentials], Depends(security)],
 ) -> dict:
     """現在のユーザを取得"""
-    token = credentials.credentials
+    token = credentials.credentials if credentials else None
+    if not token:
+        token = request.cookies.get(settings.auth_cookie_name)
+    if not token:
+        raise UnauthorizedError("Invalid authentication credentials")
     
     try:
         payload = verify_token(token)

@@ -8,7 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
 from app.core.logging import setup_logging, get_logger
-from app.core.middleware import RequestIDMiddleware
+from app.core.middleware import RequestIDMiddleware, CsrfMiddleware
 from app.core.exceptions import BIException
 from app.api.routes import auth, users, chatbot
 from app.db.dynamodb import close_dynamodb
@@ -26,6 +26,7 @@ app = FastAPI(
 
 # ミドルウェア登録
 app.add_middleware(RequestIDMiddleware)
+app.add_middleware(CsrfMiddleware)
 
 
 def _get_request_id(request: Request) -> str | None:

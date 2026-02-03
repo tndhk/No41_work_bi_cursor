@@ -18,6 +18,18 @@ class TestSandbox(unittest.TestCase):
         code = "import pandas as pd\ndf = pd.DataFrame()"
         errors = validate_code(code)
         self.assertEqual(len(errors), 0)
+
+    def test_validate_code_blocks_dunder_access(self):
+        """dunder属性へのアクセスを拒否する"""
+        code = "x = ().__class__"
+        errors = validate_code(code)
+        self.assertGreater(len(errors), 0)
+
+    def test_validate_code_blocks_disallowed_import(self):
+        """許可されていないimportを拒否する"""
+        code = "import os"
+        errors = validate_code(code)
+        self.assertGreater(len(errors), 0)
     
     def test_sandbox_context_blocks_disallowed_import(self):
         """sandbox_contextが許可されていないimportを拒否する"""

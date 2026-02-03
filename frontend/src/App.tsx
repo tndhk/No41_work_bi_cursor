@@ -1,6 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/common/Layout'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
@@ -16,19 +16,19 @@ import { authApi } from './lib/api'
 
 const queryClient = new QueryClient()
 
-function AppContent() {
-  const { token, setUser } = useAuthStore()
+function AppContent(): JSX.Element {
+  const { setUser, setAuthChecked } = useAuthStore()
 
   useEffect(() => {
-    // トークンがある場合、ユーザ情報を取得
-    if (token) {
-      authApi.getMe()
-        .then((user) => setUser(user))
-        .catch(() => {
-          // エラー時は何もしない（認証エラーはapi.tsで処理）
-        })
-    }
-  }, [token, setUser])
+    authApi.getMe()
+      .then((user) => setUser(user))
+      .catch(() => {
+        // 認証エラー時はapi.tsで処理
+      })
+      .finally(() => {
+        setAuthChecked(true)
+      })
+  }, [setAuthChecked, setUser])
 
   return (
     <BrowserRouter>
@@ -57,7 +57,7 @@ function AppContent() {
   )
 }
 
-function App() {
+function App(): JSX.Element {
   return (
     <QueryClientProvider client={queryClient}>
       <AppContent />

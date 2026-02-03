@@ -33,9 +33,10 @@ describe('App', () => {
   it('認証済みの場合、ダッシュボードを表示する', () => {
     const mockSetUser = vi.fn()
     vi.mocked(useAuthStore).mockReturnValue({
-      token: 'test-token',
       isAuthenticated: () => true,
       setUser: mockSetUser,
+      setAuthChecked: vi.fn(),
+      authChecked: true,
     } as any)
 
     vi.mocked(authApi.getMe).mockResolvedValue({
@@ -52,9 +53,10 @@ describe('App', () => {
 
   it('未認証の場合、ログインページにリダイレクトする', () => {
     vi.mocked(useAuthStore).mockReturnValue({
-      token: null,
       isAuthenticated: () => false,
       setUser: vi.fn(),
+      setAuthChecked: vi.fn(),
+      authChecked: true,
     } as any)
 
     render(<App />)
