@@ -1,9 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI",
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   line-height: 1.5;
   font-weight: 400;
 }
@@ -11,4 +14,6 @@
 body {
   margin: 0;
   min-height: 100vh;
+  background-color: #F6F7FB;
+  color: #0F172A;
 }

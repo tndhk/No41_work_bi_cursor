@@ -17,27 +17,33 @@ export default function Header() {
   }
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
-            <h1 className="text-xl font-semibold text-gray-900">
+    <header className="sticky top-0 z-10 border-b border-border bg-panel/90 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-2xl bg-accent-soft text-accent flex items-center justify-center text-base font-semibold">
+            BI
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight text-text sm:text-xl">
               社内BI・Pythonカード
             </h1>
+            <p className="text-xs text-text-muted">Data workspace</p>
           </div>
-          <div className="flex items-center space-x-4">
+        </div>
+        <div className="flex items-center gap-4">
             {user && (
               <>
-                <span className="text-sm text-gray-700">{user.name}</span>
+                <span className="text-sm font-medium text-text">
+                  {user.name}
+                </span>
                 <button
                   onClick={handleLogout}
-                  className="text-sm text-gray-600 hover:text-gray-900"
+                  className="text-sm text-text-muted hover:text-text"
                 >
                   ログアウト
                 </button>
               </>
             )}
-          </div>
         </div>
       </div>
     </header>
