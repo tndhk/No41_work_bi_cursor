@@ -275,7 +275,19 @@ def setup_dynamodb_tables(mock_dynamodb):
         {
             "TableName": get_table_name("Users"),
             "KeySchema": [{"AttributeName": "userId", "KeyType": "HASH"}],
-            "AttributeDefinitions": [{"AttributeName": "userId", "AttributeType": "S"}],
+            "AttributeDefinitions": [
+                {"AttributeName": "userId", "AttributeType": "S"},
+                {"AttributeName": "email", "AttributeType": "S"},
+            ],
+            "GlobalSecondaryIndexes": [
+                {
+                    "IndexName": "UsersByEmail",
+                    "KeySchema": [
+                        {"AttributeName": "email", "KeyType": "HASH"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                }
+            ],
             "BillingMode": "PAY_PER_REQUEST",
         },
         {
@@ -322,6 +334,7 @@ def setup_dynamodb_tables(mock_dynamodb):
             "AttributeDefinitions": [
                 {"AttributeName": "cardId", "AttributeType": "S"},
                 {"AttributeName": "ownerId", "AttributeType": "S"},
+                {"AttributeName": "datasetId", "AttributeType": "S"},
                 {"AttributeName": "createdAt", "AttributeType": "N"},
             ],
             "GlobalSecondaryIndexes": [
@@ -332,7 +345,15 @@ def setup_dynamodb_tables(mock_dynamodb):
                         {"AttributeName": "createdAt", "KeyType": "RANGE"},
                     ],
                     "Projection": {"ProjectionType": "ALL"},
-                }
+                },
+                {
+                    "IndexName": "CardsByDataset",
+                    "KeySchema": [
+                        {"AttributeName": "datasetId", "KeyType": "HASH"},
+                        {"AttributeName": "createdAt", "KeyType": "RANGE"},
+                    ],
+                    "Projection": {"ProjectionType": "ALL"},
+                },
             ],
             "BillingMode": "PAY_PER_REQUEST",
         },

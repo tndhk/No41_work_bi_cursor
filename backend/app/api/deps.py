@@ -11,7 +11,8 @@ security = HTTPBearer()
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ) -> dict:
     """現在のユーザを取得"""
     token = credentials.credentials
@@ -21,6 +22,7 @@ async def get_current_user(
         user_id: str = payload.get("sub")
         if user_id is None:
             raise UnauthorizedError("Invalid authentication credentials")
+        request.state.user_id = user_id
         return {"user_id": user_id, "payload": payload}
     except ValueError:
         raise UnauthorizedError("Invalid authentication credentials")

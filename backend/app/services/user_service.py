@@ -95,11 +95,11 @@ async def get_user_by_email(email: str) -> Optional[UserInDB]:
     """メールアドレスでユーザを取得"""
     client = await get_dynamodb_client()
     
-    # Scan + FilterExpressionで検索（MVP段階では許容）
-    # 本番環境ではGSIを作成してクエリすることを推奨
-    response = await client.scan(
+    # UsersByEmail GSIを使用してクエリ
+    response = await client.query(
         TableName=TABLE_NAME,
-        FilterExpression="email = :email",
+        IndexName="UsersByEmail",
+        KeyConditionExpression="email = :email",
         ExpressionAttributeValues={
             ":email": {"S": email}
         },

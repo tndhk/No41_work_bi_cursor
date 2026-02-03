@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     # テスト設定
     allow_test_setup: bool = False
     
+    # キャッシュ設定
+    redis_url: str | None = None  # Redis URL（例: redis://localhost:6379/0）
+    cache_ttl_seconds: int = 3600  # キャッシュTTL（デフォルト1時間）
+    
     def model_post_init(self, __context):
         """バリデーション"""
         if len(self.jwt_secret_key) < 32:

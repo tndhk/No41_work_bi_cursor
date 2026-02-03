@@ -26,6 +26,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         logger.info(
             "request_completed",
             request_id=request_id,
+            user_id=getattr(request.state, "user_id", None),
             method=request.method,
             path=request.url.path,
             status_code=response.status_code,

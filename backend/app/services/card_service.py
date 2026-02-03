@@ -5,8 +5,14 @@ import uuid
 
 from app.db.dynamodb import get_dynamodb_client, get_table_name
 from app.core.exceptions import NotFoundError
+from app.core.config import settings
 from app.models.card import Card, CardCreate, CardUpdate, CardPreviewRequest, CardPreviewResponse
 from app.services.dataset_service import get_dataset
+from app.services.cache_service import (
+    get_cached_card_preview,
+    set_cached_card_preview,
+    invalidate_card_preview_cache,
+)
 
 
 CARDS_TABLE = get_table_name("Cards")
@@ -144,8 +150,21 @@ async def list_cards(
     """Card一覧を取得"""
     client = await get_dynamodb_client()
     
-    if owner_id:
-        # GSIを使用してownerIdでクエリ
+    query_limit = limit + offset
+    
+    if dataset_id:
+        response = await client.query(
+            TableName=CARDS_TABLE,
+            IndexName="CardsByDataset",
+            KeyConditionExpression="datasetId = :datasetId",
+            ExpressionAttributeValues={
+                ":datasetId": {"S": dataset_id}
+            },
+            Limit=query_limit,
+            ScanIndexForward=False,
+        )
+        items = response.get("Items", [])
+    elif owner_id:
         response = await client.query(
             TableName=CARDS_TABLE,
             IndexName="CardsByOwner",
@@ -153,23 +172,21 @@ async def list_cards(
             ExpressionAttributeValues={
                 ":ownerId": {"S": owner_id}
             },
-            Limit=limit + offset,
-            ScanIndexForward=False,  # 新しい順
+            Limit=query_limit,
+            ScanIndexForward=False,
         )
         items = response.get("Items", [])
     else:
-        # Scan
         response = await client.scan(
             TableName=CARDS_TABLE,
-            Limit=limit + offset,
+            Limit=query_limit,
         )
         items = response.get("Items", [])
     
     cards = [_item_to_card(item) for item in items]
     
-    # dataset_idでフィルタ
-    if dataset_id:
-        cards = [c for c in cards if c.dataset_id == dataset_id]
+    if dataset_id and owner_id:
+        cards = [c for c in cards if c.owner_id == owner_id]
     
     if q:
         cards = [c for c in cards if q.lower() in c.name.lower()]
@@ -240,6 +257,9 @@ async def update_card(card_id: str, card_data: CardUpdate) -> Card:
     
     await client.update_item(**update_kwargs)
     
+    # カード更新時はキャッシュを無効化
+    await invalidate_card_preview_cache(card_id)
+    
     return await get_card(card_id)
 
 
@@ -248,6 +268,9 @@ async def delete_card(card_id: str) -> None:
     card = await get_card(card_id)
     if not card:
         raise NotFoundError("Card", card_id)
+    
+    # カード削除時はキャッシュを無効化
+    await invalidate_card_preview_cache(card_id)
     
     client = await get_dynamodb_client()
     
@@ -263,6 +286,38 @@ async def preview_card(card_id: str, preview_request: CardPreviewRequest) -> Car
     if not card:
         raise NotFoundError("Card", card_id)
     
+    # キャッシュから取得を試みる
+    cached_preview = await get_cached_card_preview(
+        card_id,
+        preview_request.filters,
+        preview_request.params,
+    )
+    if cached_preview is not None:
+        return CardPreviewResponse(
+            html=cached_preview["html"],
+            used_columns=cached_preview.get("used_columns", []),
+            filter_applicable=cached_preview.get("filter_applicable", []),
+        )
+    
     # Executorサービスを呼び出す（Phase 6で実装）
     # 現時点ではダミー実装
+    # TODO: 実際のexecutor呼び出しが実装されたら、以下のように変更:
+    # result = await execute_card_via_executor(card, preview_request)
+    # preview_response = CardPreviewResponse(
+    #     html=result["html"],
+    #     used_columns=result.get("used_columns", []),
+    #     filter_applicable=result.get("filter_applicable", []),
+    # )
+    # 
+    # # キャッシュに保存
+    # await set_cached_card_preview(
+    #     card_id,
+    #     preview_request.filters,
+    #     preview_request.params,
+    #     preview_response.model_dump(),
+    #     ttl_seconds=settings.cache_ttl_seconds,
+    # )
+    # 
+    # return preview_response
+    
     raise NotImplementedError("Card preview execution will be implemented in Phase 6 (Executor)")

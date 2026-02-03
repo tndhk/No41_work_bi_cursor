@@ -1,12 +1,13 @@
 """FastAPI アプリケーションエントリポイント"""
 from datetime import datetime
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
-from app.core.logging import setup_logging
+from app.core.logging import setup_logging, get_logger
 from app.core.middleware import RequestIDMiddleware
 from app.core.exceptions import BIException
 from app.api.routes import auth, users, chatbot
@@ -15,6 +16,7 @@ from app.db.s3 import close_s3
 
 # ログ設定初期化
 setup_logging()
+logger = get_logger(__name__)
 
 app = FastAPI(
     title="社内BI・Pythonカード API",
@@ -49,10 +51,24 @@ def _create_error_response(
     )
 
 
+def _get_user_id(request: Request) -> str | None:
+    """ユーザーIDを取得"""
+    return getattr(request.state, "user_id", None)
+
+
 @app.exception_handler(BIException)
 async def bi_exception_handler(request: Request, exc: BIException):
     """BI例外ハンドラー"""
     error = exc.detail if isinstance(exc.detail, dict) else {"message": str(exc.detail)}
+    logger.warning(
+        "request_failed",
+        request_id=_get_request_id(request),
+        user_id=_get_user_id(request),
+        method=request.method,
+        path=request.url.path,
+        status_code=exc.status_code,
+        error_code=error.get("code"),
+    )
     return _create_error_response(exc.status_code, error, request)
 
 
@@ -64,7 +80,50 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         "message": "Validation error",
         "details": exc.errors(),
     }
+    logger.warning(
+        "validation_failed",
+        request_id=_get_request_id(request),
+        user_id=_get_user_id(request),
+        method=request.method,
+        path=request.url.path,
+        status_code=422,
+        error_code=error.get("code"),
+    )
     return _create_error_response(422, error, request)
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """HTTP例外ハンドラー"""
+    detail = exc.detail
+    error = detail if isinstance(detail, dict) else {"message": str(detail)}
+    logger.warning(
+        "http_exception",
+        request_id=_get_request_id(request),
+        user_id=_get_user_id(request),
+        method=request.method,
+        path=request.url.path,
+        status_code=exc.status_code,
+        error_code=error.get("code") if isinstance(error, dict) else None,
+    )
+    return _create_error_response(exc.status_code, error, request)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def starlette_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Starlette HTTP例外ハンドラー"""
+    detail = exc.detail
+    error = detail if isinstance(detail, dict) else {"message": str(detail)}
+    logger.warning(
+        "http_exception",
+        request_id=_get_request_id(request),
+        user_id=_get_user_id(request),
+        method=request.method,
+        path=request.url.path,
+        status_code=exc.status_code,
+        error_code=error.get("code") if isinstance(error, dict) else None,
+    )
+    return _create_error_response(exc.status_code, error, request)
 
 
 @app.exception_handler(Exception)
@@ -74,6 +133,16 @@ async def general_exception_handler(request: Request, exc: Exception):
         "code": "INTERNAL_ERROR",
         "message": "Internal server error",
     }
+    logger.error(
+        "internal_error",
+        request_id=_get_request_id(request),
+        user_id=_get_user_id(request),
+        method=request.method,
+        path=request.url.path,
+        status_code=500,
+        error_code=error.get("code"),
+        exc_info=True,
+    )
     return _create_error_response(500, error, request)
 
 

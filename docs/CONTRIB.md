@@ -140,6 +140,9 @@ All environment variables are defined in `.env.example`. Copy to `.env.local` an
 | `EXECUTOR_MAX_CONCURRENT_TRANSFORMS` | `5` | Maximum concurrent transform executions | No |
 | `LOG_LEVEL` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`) | No |
 | `LOG_FORMAT` | `json` | Log format (`json` or `text`) | No |
+| `REDIS_URL` | (none) | Redis URL for caching (e.g., `redis://localhost:6379/0`). If not set, in-memory cache is used | No |
+| `CACHE_TTL_SECONDS` | `3600` | Cache TTL in seconds (default: 1 hour) | No |
+| `ALLOW_TEST_SETUP` | `false` | Enable test setup endpoint (for E2E tests only) | No |
 
 ## Testing
 
@@ -379,6 +382,29 @@ The Chatbot feature allows users to ask questions about dashboard data using nat
 - Default: 10 requests per 60 seconds per user
 - Returns HTTP 429 when limit exceeded
 
+### Card Execution Caching
+
+Card preview results are cached to improve performance and reduce executor load. Cache keys are based on card ID and filter values.
+
+**Architecture:**
+- Backend: `backend/app/services/cache_service.py` - Cache abstraction with Redis and in-memory backends
+- Cache key format: `card_preview:{card_id}:{filters_hash}`
+- TTL: Configurable (default: 1 hour)
+
+**Configuration:**
+- `REDIS_URL`: Redis connection URL (optional). If not set, in-memory cache is used (development mode)
+- `CACHE_TTL_SECONDS`: Cache TTL in seconds (default: 3600)
+
+**How it works:**
+1. When a card preview is requested, cache is checked first
+2. If cache hit, cached HTML is returned immediately
+3. If cache miss, executor runs the card code and result is cached
+4. Cache is invalidated when card is updated or deleted
+
+**Cache backends:**
+- **Redis**: Production-ready, shared across instances
+- **In-memory**: Development mode, per-instance cache
+
 ## Common Development Tasks
 
 ### Adding a New API Endpoint
@@ -400,9 +426,44 @@ The Chatbot feature allows users to ask questions about dashboard data using nat
 ### Database Schema Changes
 
 1. Update model definitions in `backend/app/models/`
-2. Update initialization scripts in `scripts/` if adding new tables
+2. Update initialization scripts in `scripts/` if adding new tables or GSIs
+   - `scripts/init_tables.py` - Local development tables
+   - `backend/tests/conftest.py` - Test table definitions
 3. Update tests with new schema
-4. Update documentation in `docs/design.md`
+4. Update service code to use new GSIs (replace scans with queries)
+5. Update documentation in `docs/design.md`
+
+**Adding Global Secondary Indexes (GSIs):**
+
+When adding GSIs for query optimization:
+
+1. Add GSI definition to `scripts/init_tables.py`:
+   ```python
+   "GlobalSecondaryIndexes": [
+       {
+           "IndexName": "YourIndexName",
+           "KeySchema": [
+               {"AttributeName": "hashKey", "KeyType": "HASH"},
+               {"AttributeName": "rangeKey", "KeyType": "RANGE"},  # Optional
+           ],
+           "Projection": {"ProjectionType": "ALL"},
+       }
+   ]
+   ```
+
+2. Add same GSI to `backend/tests/conftest.py` table definitions
+
+3. Update service code to use query instead of scan:
+   ```python
+   response = await client.query(
+       TableName=TABLE_NAME,
+       IndexName="YourIndexName",
+       KeyConditionExpression="hashKey = :hashKey",
+       ExpressionAttributeValues={":hashKey": {"S": value}},
+   )
+   ```
+
+4. Update production infrastructure (Terraform/CloudFormation) separately
 
 ## Getting Help
 
