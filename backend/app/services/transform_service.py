@@ -2,11 +2,13 @@
 from datetime import datetime
 from typing import Optional, List, Tuple
 import uuid
+import httpx
 
 from app.db.dynamodb import get_dynamodb_client, get_table_name
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, InternalError
+from app.core.config import settings
 from app.models.transform import Transform, TransformCreate, TransformUpdate, TransformExecution
-from app.services.dataset_service import get_dataset
+from app.services.dataset_service import get_dataset, ColumnSchema
 
 
 TRANSFORMS_TABLE = get_table_name("Transforms")
@@ -292,7 +294,7 @@ async def execute_transform(transform_id: str, user_id: str) -> TransformExecuti
     execution_data = {
         "executionId": execution_id,
         "transformId": transform_id,
-        "status": "pending",
+        "status": "running",
         "startedAt": now,
     }
     
@@ -302,9 +304,143 @@ async def execute_transform(transform_id: str, user_id: str) -> TransformExecuti
         Item=_dict_to_dynamodb_item(execution_data),
     )
     
-    # Executorサービスを呼び出す（Phase 6で実装）
-    # 現時点ではダミー実装
-    raise NotImplementedError("Transform execution will be implemented in Phase 6 (Executor)")
+    try:
+        # 入力Datasetを取得してS3パスを取得
+        input_dataset_paths = {}
+        for dataset_id in transform.input_dataset_ids:
+            dataset = await get_dataset(dataset_id)
+            if not dataset:
+                raise NotFoundError("Dataset", dataset_id)
+            # Executor側では入力名としてdataset_idを使用
+            input_dataset_paths[dataset_id] = dataset.s3_path
+        
+        # Executorサービスを呼び出す
+        executor_url = f"{settings.executor_endpoint}/execute/transform"
+        request_data = {
+            "code": transform.code,
+            "input_dataset_paths": input_dataset_paths,
+        }
+        
+        async with httpx.AsyncClient(timeout=settings.executor_timeout_transform + 10) as http_client:
+            response = await http_client.post(executor_url, json=request_data)
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get("status") != "success":
+                raise InternalError(f"Executor returned error: {result.get('detail', 'Unknown error')}")
+            
+            executor_result = result.get("data", {})
+            s3_path = executor_result.get("s3_path")
+            row_count = executor_result.get("row_count", 0)
+            column_count = executor_result.get("column_count", 0)
+            columns = executor_result.get("columns", [])
+            
+            if not s3_path:
+                raise InternalError("Executor did not return S3 path")
+            
+            # 出力Datasetを作成
+            from app.services.dataset_service import create_dataset_from_transform_output
+            output_dataset = await create_dataset_from_transform_output(
+                user_id=user_id,
+                name=f"{transform.name}_output",
+                transform_id=transform_id,
+                s3_path=s3_path,
+                schema=[ColumnSchema(name=col, dtype="string", nullable=True) for col in columns],
+                row_count=row_count,
+                column_count=column_count,
+            )
+            
+            # Transformのoutput_dataset_idを更新
+            update_expressions = ["outputDatasetId = :outputDatasetId", "lastExecutedAt = :lastExecutedAt"]
+            expression_attribute_values = {
+                ":outputDatasetId": {"S": output_dataset.dataset_id},
+                ":lastExecutedAt": {"N": str(now)},
+            }
+            
+            await client.update_item(
+                TableName=TRANSFORMS_TABLE,
+                Key={"transformId": {"S": transform_id}},
+                UpdateExpression=f"SET {', '.join(update_expressions)}",
+                ExpressionAttributeValues=expression_attribute_values,
+            )
+            
+            # 実行履歴を更新
+            finished_at = int(datetime.utcnow().timestamp())
+            await client.update_item(
+                TableName=EXECUTIONS_TABLE,
+                Key={"executionId": {"S": execution_id}},
+                UpdateExpression="SET #status = :status, finishedAt = :finishedAt, outputDatasetId = :outputDatasetId",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={
+                    ":status": {"S": "completed"},
+                    ":finishedAt": {"N": str(finished_at)},
+                    ":outputDatasetId": {"S": output_dataset.dataset_id},
+                },
+            )
+            
+            return TransformExecution(
+                execution_id=execution_id,
+                transform_id=transform_id,
+                status="completed",
+                started_at=datetime.fromtimestamp(now),
+                finished_at=datetime.fromtimestamp(finished_at),
+                error_message=None,
+                output_dataset_id=output_dataset.dataset_id,
+            )
+            
+    except httpx.HTTPStatusError as e:
+        error_message = f"Executor service error: {e.response.status_code}"
+        if e.response.status_code == 503:
+            error_message = "Transform execution queue is full. Please try again later."
+        elif e.response.status_code == 400:
+            error_detail = e.response.json().get("detail", "Execution error")
+            error_message = f"Transform execution failed: {error_detail}"
+        
+        # 実行履歴を更新
+        finished_at = int(datetime.utcnow().timestamp())
+        await client.update_item(
+            TableName=EXECUTIONS_TABLE,
+            Key={"executionId": {"S": execution_id}},
+            UpdateExpression="SET #status = :status, finishedAt = :finishedAt, errorMessage = :errorMessage",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":status": {"S": "failed"},
+                ":finishedAt": {"N": str(finished_at)},
+                ":errorMessage": {"S": error_message},
+            },
+        )
+        
+        raise InternalError(error_message)
+    except httpx.TimeoutException:
+        error_message = "Transform execution timeout"
+        finished_at = int(datetime.utcnow().timestamp())
+        await client.update_item(
+            TableName=EXECUTIONS_TABLE,
+            Key={"executionId": {"S": execution_id}},
+            UpdateExpression="SET #status = :status, finishedAt = :finishedAt, errorMessage = :errorMessage",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":status": {"S": "failed"},
+                ":finishedAt": {"N": str(finished_at)},
+                ":errorMessage": {"S": error_message},
+            },
+        )
+        raise InternalError(error_message)
+    except Exception as e:
+        error_message = f"Failed to execute transform: {str(e)}"
+        finished_at = int(datetime.utcnow().timestamp())
+        await client.update_item(
+            TableName=EXECUTIONS_TABLE,
+            Key={"executionId": {"S": execution_id}},
+            UpdateExpression="SET #status = :status, finishedAt = :finishedAt, errorMessage = :errorMessage",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":status": {"S": "failed"},
+                ":finishedAt": {"N": str(finished_at)},
+                ":errorMessage": {"S": error_message},
+            },
+        )
+        raise InternalError(error_message)
 
 
 async def list_transform_executions(

@@ -1,6 +1,8 @@
 """実行エンジン"""
 import io
+import uuid
 import pandas as pd
+import pyarrow as pa
 import pyarrow.parquet as pq
 from typing import Dict, Any, Optional
 import traceback
@@ -153,8 +155,25 @@ async def execute_transform(
                 if not isinstance(result_df, pd.DataFrame):
                     raise ExecutionError("transform function must return a DataFrame")
                 
+                # DataFrameをS3に保存
+                dataset_id = f"dataset_{uuid.uuid4().hex[:12]}"
+                s3_path = f"datasets/{dataset_id}/data.parquet"
+                
+                parquet_buffer = io.BytesIO()
+                table = pa.Table.from_pandas(result_df)
+                pq.write_table(table, parquet_buffer)
+                parquet_buffer.seek(0)
+                
+                s3_client = await get_s3_client()
+                datasets_bucket = get_bucket_name("datasets")
+                await s3_client.put_object(
+                    Bucket=datasets_bucket,
+                    Key=s3_path,
+                    Body=parquet_buffer.getvalue(),
+                )
+                
                 return {
-                    "dataframe": result_df,
+                    "s3_path": s3_path,
                     "row_count": len(result_df),
                     "column_count": len(result_df.columns),
                     "columns": list(result_df.columns),

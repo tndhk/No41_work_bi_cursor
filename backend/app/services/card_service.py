@@ -2,9 +2,10 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Tuple
 import uuid
+import httpx
 
 from app.db.dynamodb import get_dynamodb_client, get_table_name
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, InternalError
 from app.core.config import settings
 from app.models.card import Card, CardCreate, CardUpdate, CardPreviewRequest, CardPreviewResponse
 from app.services.dataset_service import get_dataset
@@ -299,25 +300,55 @@ async def preview_card(card_id: str, preview_request: CardPreviewRequest) -> Car
             filter_applicable=cached_preview.get("filter_applicable", []),
         )
     
-    # Executorサービスを呼び出す（Phase 6で実装）
-    # 現時点ではダミー実装
-    # TODO: 実際のexecutor呼び出しが実装されたら、以下のように変更:
-    # result = await execute_card_via_executor(card, preview_request)
-    # preview_response = CardPreviewResponse(
-    #     html=result["html"],
-    #     used_columns=result.get("used_columns", []),
-    #     filter_applicable=result.get("filter_applicable", []),
-    # )
-    # 
-    # # キャッシュに保存
-    # await set_cached_card_preview(
-    #     card_id,
-    #     preview_request.filters,
-    #     preview_request.params,
-    #     preview_response.model_dump(),
-    #     ttl_seconds=settings.cache_ttl_seconds,
-    # )
-    # 
-    # return preview_response
+    # Datasetを取得してS3パスを取得
+    dataset = await get_dataset(card.dataset_id)
+    if not dataset:
+        raise NotFoundError("Dataset", card.dataset_id)
     
-    raise NotImplementedError("Card preview execution will be implemented in Phase 6 (Executor)")
+    # Executorサービスを呼び出す
+    executor_url = f"{settings.executor_endpoint}/execute/card"
+    request_data = {
+        "code": card.code,
+        "dataset_path": dataset.s3_path,
+        "filters": preview_request.filters,
+        "params": preview_request.params or {},
+    }
+    
+    try:
+        async with httpx.AsyncClient(timeout=settings.executor_timeout_card + 5) as client:
+            response = await client.post(executor_url, json=request_data)
+            response.raise_for_status()
+            result = response.json()
+            
+            if result.get("status") != "success":
+                raise InternalError(f"Executor returned error: {result.get('detail', 'Unknown error')}")
+            
+            executor_result = result.get("data", {})
+            preview_response = CardPreviewResponse(
+                html=executor_result.get("html", ""),
+                used_columns=executor_result.get("used_columns", []),
+                filter_applicable=executor_result.get("filter_applicable", []),
+            )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 503:
+            raise InternalError("Card execution queue is full. Please try again later.")
+        elif e.response.status_code == 400:
+            error_detail = e.response.json().get("detail", "Execution error")
+            raise InternalError(f"Card execution failed: {error_detail}")
+        else:
+            raise InternalError(f"Executor service error: {e.response.status_code}")
+    except httpx.TimeoutException:
+        raise InternalError("Card execution timeout")
+    except Exception as e:
+        raise InternalError(f"Failed to execute card: {str(e)}")
+    
+    # キャッシュに保存
+    await set_cached_card_preview(
+        card_id,
+        preview_request.filters,
+        preview_request.params,
+        preview_response.model_dump(),
+        ttl_seconds=settings.cache_ttl_seconds,
+    )
+    
+    return preview_response

@@ -122,10 +122,11 @@ async def execute_transform_endpoint(request: TransformExecuteRequest):
         # ここでは簡略化してキューに追加するだけ
         result = await execute()
         
-        # DataFrameはシリアライズできないので、メタデータのみ返す
+        # Executor側でDataFrameをS3に保存済みなので、S3パスとメタデータを返す
         return {
             "status": "success",
             "data": {
+                "s3_path": result["s3_path"],
                 "row_count": result["row_count"],
                 "column_count": result["column_count"],
                 "columns": result["columns"],

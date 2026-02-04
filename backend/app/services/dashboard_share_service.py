@@ -7,6 +7,8 @@ from app.db.dynamodb import get_dynamodb_client, get_table_name
 from app.core.exceptions import NotFoundError
 from app.models.dashboard import DashboardShare
 from app.services.dashboard_service import get_dashboard
+from app.services.group_service import get_group_member
+from app.services.dashboard_service import get_dashboard
 
 
 DASHBOARD_SHARES_TABLE = get_table_name("DashboardShares")
@@ -165,6 +167,10 @@ async def check_dashboard_permission(dashboard_id: str, user_id: str) -> Optiona
     for share in shares:
         if share.shared_to_type == "user" and share.shared_to_id == user_id:
             return share.permission
-        # TODO: Groupメンバーシップチェック（Phase 2で実装済み）
+        elif share.shared_to_type == "group":
+            # Groupメンバーシップチェック
+            group_member = await get_group_member(share.shared_to_id, user_id)
+            if group_member is not None:
+                return share.permission
     
     return None

@@ -321,6 +321,61 @@ async def create_dataset_from_s3_csv(
     )
 
 
+async def create_dataset_from_transform_output(
+    user_id: str,
+    name: str,
+    transform_id: str,
+    s3_path: str,
+    schema: List[ColumnSchema],
+    row_count: int,
+    column_count: int,
+) -> Dataset:
+    """Transform実行の出力からDatasetを作成"""
+    dataset_id = f"dataset_{uuid.uuid4().hex[:12]}"
+    now = int(datetime.utcnow().timestamp())
+    
+    item_data = {
+        "datasetId": dataset_id,
+        "name": name,
+        "ownerId": user_id,
+        "sourceType": "transform",
+        "sourceConfig": {
+            "transform_id": transform_id,
+        },
+        "schema": _schema_to_dynamodb(schema),
+        "rowCount": row_count,
+        "columnCount": column_count,
+        "s3Path": s3_path,
+        "createdAt": now,
+        "updatedAt": now,
+        "lastImportAt": now,
+        "lastImportBy": user_id,
+    }
+    
+    client = await get_dynamodb_client()
+    await client.put_item(
+        TableName=DATASETS_TABLE,
+        Item=_dict_to_dynamodb_item(item_data),
+    )
+    
+    return Dataset(
+        dataset_id=dataset_id,
+        name=name,
+        owner_id=user_id,
+        source_type="transform",
+        source_config=item_data["sourceConfig"],
+        schema=schema,
+        row_count=row_count,
+        column_count=column_count,
+        s3_path=s3_path,
+        partition_column=None,
+        created_at=datetime.fromtimestamp(now),
+        updated_at=datetime.fromtimestamp(now),
+        last_import_at=datetime.fromtimestamp(now),
+        last_import_by=user_id,
+    )
+
+
 async def get_dataset(dataset_id: str) -> Optional[Dataset]:
     """Datasetを取得"""
     client = await get_dynamodb_client()

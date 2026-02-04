@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import FilterBar from './FilterBar'
 import CardContainer from './CardContainer'
 import ChatbotPanel from '../chatbot/ChatbotPanel'
+import FilterViewManager from './FilterViewManager'
+import DashboardShareDialog from './DashboardShareDialog'
 
 interface Dashboard {
   dashboard_id: string
@@ -22,8 +24,10 @@ interface DashboardViewerProps {
 export default function DashboardViewer({ dashboard, showEditLink = false }: DashboardViewerProps) {
   const [filters, setFilters] = useState<Record<string, any>>({})
   const [isChatOpen, setIsChatOpen] = useState(false)
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false)
   const cards = dashboard.layout?.cards || []
   const canEdit = dashboard.permission === 'owner' || dashboard.permission === 'editor'
+  const canShare = dashboard.permission === 'owner'
 
   return (
     <div className="p-6">
@@ -50,6 +54,14 @@ export default function DashboardViewer({ dashboard, showEditLink = false }: Das
             </svg>
             <span>データを質問</span>
           </button>
+          {canShare && (
+            <button
+              onClick={() => setIsShareDialogOpen(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+            >
+              共有
+            </button>
+          )}
           {showEditLink && canEdit && (
             <Link
               to={`/dashboards/${dashboard.dashboard_id}/edit`}
@@ -60,11 +72,19 @@ export default function DashboardViewer({ dashboard, showEditLink = false }: Das
           )}
         </div>
       </div>
-      <FilterBar
-        filters={dashboard.filters}
-        values={filters}
-        onChange={setFilters}
-      />
+      <div className="space-y-4">
+        <FilterBar
+          filters={dashboard.filters}
+          values={filters}
+          onChange={setFilters}
+        />
+        <FilterViewManager
+          dashboardId={dashboard.dashboard_id}
+          currentFilters={filters}
+          onApplyFilterView={setFilters}
+          canEdit={canEdit}
+        />
+      </div>
       <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {cards.map((card) => (
           <CardContainer
@@ -84,6 +104,12 @@ export default function DashboardViewer({ dashboard, showEditLink = false }: Das
         dashboardId={dashboard.dashboard_id}
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
+      />
+      
+      <DashboardShareDialog
+        dashboardId={dashboard.dashboard_id}
+        isOpen={isShareDialogOpen}
+        onClose={() => setIsShareDialogOpen(false)}
       />
     </div>
   )
