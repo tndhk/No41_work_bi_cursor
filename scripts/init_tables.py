@@ -244,6 +244,28 @@ async def main():
         ],
     )
 
+    # TransformExecutions table
+    await create_table(
+        session,
+        f"{PREFIX}TransformExecutions",
+        [{"AttributeName": "executionId", "KeyType": "HASH"}],
+        [
+            {"AttributeName": "executionId", "AttributeType": "S"},
+            {"AttributeName": "transformId", "AttributeType": "S"},
+            {"AttributeName": "startedAt", "AttributeType": "N"},
+        ],
+        [
+            {
+                "IndexName": "ExecutionsByTransform",
+                "KeySchema": [
+                    {"AttributeName": "transformId", "KeyType": "HASH"},
+                    {"AttributeName": "startedAt", "KeyType": "RANGE"},
+                ],
+                "Projection": {"ProjectionType": "ALL"},
+            }
+        ],
+    )
+
     # AuditLogs table
     await create_table(
         session,

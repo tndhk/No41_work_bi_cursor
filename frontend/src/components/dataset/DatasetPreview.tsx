@@ -30,7 +30,7 @@ export default function DatasetPreview({ dataset_id, limit = 100 }: DatasetPrevi
     <div className="bg-white rounded-lg shadow-sm p-6">
       <h3 className="text-lg font-semibold mb-4">プレビュー</h3>
       <div className="mb-4 text-sm text-gray-600">
-        <p>総行数: {data.row_count.toLocaleString()}</p>
+        <p>総行数: {data.total_rows.toLocaleString()}</p>
         <p>表示行数: {data.rows.length}</p>
       </div>
 
@@ -39,13 +39,12 @@ export default function DatasetPreview({ dataset_id, limit = 100 }: DatasetPrevi
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {data.columns.map((col) => (
+                {data.columns.map((colName) => (
                   <th
-                    key={col.name}
+                    key={colName}
                     className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                   >
-                    {col.name}
-                    <span className="ml-2 text-gray-400">({col.dtype})</span>
+                    {colName}
                   </th>
                 ))}
               </tr>
@@ -53,10 +52,10 @@ export default function DatasetPreview({ dataset_id, limit = 100 }: DatasetPrevi
             <tbody className="bg-white divide-y divide-gray-200">
               {data.rows.map((row, idx) => (
                 <tr key={idx} className="hover:bg-gray-50">
-                  {data.columns.map((col) => (
-                    <td key={col.name} className="px-4 py-3 text-sm text-gray-900">
-                      {row[col.name] !== null && row[col.name] !== undefined
-                        ? String(row[col.name])
+                  {data.columns.map((colName) => (
+                    <td key={colName} className="px-4 py-3 text-sm text-gray-900">
+                      {row[colName] !== null && row[colName] !== undefined
+                        ? String(row[colName])
                         : ''}
                     </td>
                   ))}

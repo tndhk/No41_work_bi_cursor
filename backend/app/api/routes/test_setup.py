@@ -61,11 +61,15 @@ B,2024-01-02,250
     
     # カードを作成
     card_code = """
-import pandas as pd
-from filters import get_filter_value
-
-category = get_filter_value('category', 'A')
-html = f'<div>Filter: {category}</div><div>Value: 100</div>'
+def render(dataset, filters, params):
+    category = filters.get('category', 'A')
+    total = dataset['value'].sum()
+    html = f'<div style="padding: 20px; background: #f5f5f5; border-radius: 8px;"><h3>Category: {category}</h3><p>Total Value: {total}</p></div>'
+    return {
+        "html": html,
+        "used_columns": ["category", "value"],
+        "filter_applicable": ["category"],
+    }
 """
     card = await create_card(
         user_id=user.user_id,

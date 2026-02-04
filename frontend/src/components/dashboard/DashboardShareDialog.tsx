@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { dashboardSharesApi, type DashboardShareCreateRequest } from '../../lib/dashboardShares'
+import { dashboardSharesApi } from '../../lib/dashboardShares'
 import { api } from '../../lib/api'
+import type { DashboardShareCreateRequest } from '../../lib/dashboardShares'
 
 interface User {
   user_id: string

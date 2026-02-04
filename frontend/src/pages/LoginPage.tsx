@@ -6,8 +6,8 @@ import { authApi } from '../lib/api'
 export default function LoginPage(): JSX.Element {
   const navigate = useNavigate()
   const { setUser, setAuthChecked } = useAuthStore()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('test_49141989@example.com')
+  const [password, setPassword] = useState('TestPassword123')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
