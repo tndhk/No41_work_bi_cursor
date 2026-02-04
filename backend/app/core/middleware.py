@@ -44,7 +44,7 @@ class CsrfMiddleware(BaseHTTPMiddleware):
     """CSRF対策ミドルウェア（Double Submit Cookie）"""
 
     SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-    EXEMPT_PATHS = {"/api/auth/login"}
+    EXEMPT_PATHS = {"/api/auth/login", "/api/test/setup"}
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         if request.method not in self.SAFE_METHODS and request.url.path.startswith("/api"):

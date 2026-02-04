@@ -93,3 +93,15 @@ class ExecutionTimeoutError(BIException):
                 "message": detail,
             },
         )
+
+
+class InternalError(BIException):
+    """内部エラー"""
+    def __init__(self, detail: str = "Internal server error"):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": "INTERNAL_ERROR",
+                "message": detail,
+            },
+        )
